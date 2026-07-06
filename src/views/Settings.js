@@ -55,6 +55,8 @@ export default function MobileSettings({ user, refetch, onNavigate, onSignOut })
       </View>
 
       <View style={s.listCard}>
+        <SettingsRow icon="nutrition-outline" label={user.language === 'hi' ? 'भोजन और पोषण योजना' : 'Diet & Nutrition Planner'} onPress={() => onNavigate('dietPlanner')} />
+        <SettingsRow icon="people-outline" label={user.language === 'hi' ? 'विशेषज्ञ सलाह' : 'Expert Consulting'} onPress={() => onNavigate('expertConsultation')} />
         <SettingsRow icon="shield-checkmark-outline" label="Privacy & data help" onPress={() => Linking.openURL(`${WEBSITE}/contact`)} />
         <SettingsRow icon="document-text-outline" label="Terms & programme details" onPress={() => Linking.openURL(`${WEBSITE}/contact`)} />
         <SettingsRow icon="log-out-outline" label="Sign out" danger onPress={onSignOut} last />

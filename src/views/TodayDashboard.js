@@ -22,6 +22,8 @@ import {
 } from '../graphql/operations.js';
 import { colors, shadows } from '../theme/theme.js';
 import VideoPlayerModal from '../components/VideoPlayerModal.js';
+import AudioPlayerModal from '../components/AudioPlayerModal.js';
+import ReadingModeModal from '../components/ReadingModeModal.js';
 
 const SUPPORT = 'https://wa.me/919638484545?text=Hello%20Divine%20team%2C%20I%20would%20like%20guidance.';
 
@@ -119,6 +121,8 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
   const [selectedDay, setSelectedDay] = useState(user.pregnancyDay || 1);
   const [activeQuotient, setActiveQuotient] = useState('PQ');
   const [videoPlayerVisible, setVideoPlayerVisible] = useState(false);
+  const [audioPlayerVisible, setAudioPlayerVisible] = useState(false);
+  const [readingModalVisible, setReadingModalVisible] = useState(false);
   const userLang = user.language || 'en';
   const isHi = userLang === 'hi';
 
@@ -474,6 +478,25 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
             
             <Text style={s.detailsTitle}>{quotients[activeQuotient].title}</Text>
             <Text style={s.detailsDescription}>{quotients[activeQuotient].description}</Text>
+
+            {activeQuotient === 'PQ' && quotients.PQ.category === 'yoga' && (
+              <View style={s.safetyBanner}>
+                <Text style={s.safetyTitle}>
+                  ⚠️ {isHi ? "प्रसव-पूर्व सुरक्षा सावधानियां" : "Prenatal Safety Precautions"} (Trimester {selectedDay <= 90 ? '1' : selectedDay <= 180 ? '2' : '3'})
+                </Text>
+                <Text style={s.safetyText}>
+                  {selectedDay <= 90 
+                    ? (isHi ? "त्रैमासिक 1 सावधानियां: पेट पर दबाव डालने वाले आसनों से बचें, झटकेदार आंदोलनों से बचें, और यदि ऐंठन या रक्तस्राव हो तो अभ्यास तुरंत रोक दें।" : "Trimester 1 Precautions: Avoid abdominal pressure, sudden twists or high-impact jumps. Stop immediately if experiencing cramping or spotting.")
+                    : selectedDay <= 180
+                    ? (isHi ? "त्रैमासिक 2 सावधानियां: पीठ के बल अधिक देर तक लेटने से बचें, संतुलन के लिए दीवार या सहारा लें, और अत्यधिक खिंचाव से बचें।" : "Trimester 2 Precautions: Avoid lying flat on your back for long. Use wall or chair support for balance. Do not over-stretch.")
+                    : (isHi ? "त्रैमासिक 3 सावधानियां: पीठ के बल लेटने वाले आसन न करें, सांस रोकने से बचें, और हमेशा सहारे के साथ अभ्यास करें।" : "Trimester 3 Precautions: Absolutely avoid supine positions (on your back) and breath retention. Always use support (blocks/cushions).")
+                  }
+                </Text>
+                <Text style={s.safetyDisclaimer}>
+                  {isHi ? "*चिकित्सीय अस्वीकरण: किसी भी व्यायाम को शुरू करने से पहले अपने डॉक्टर से परामर्श लें।" : "*Medical Disclaimer: Consult your doctor/gynecologist before performing any exercises."}
+                </Text>
+              </View>
+            )}
             
             <View style={s.divider} />
 
@@ -550,10 +573,23 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
               {content?.mediaUrl && activeQuotient === 'SQ' && (
                 <TouchableOpacity
                   style={s.playLink}
-                  onPress={() => setVideoPlayerVisible(true)}
+                  onPress={() => {
+                    if (content.category === 'video') setVideoPlayerVisible(true);
+                    else setAudioPlayerVisible(true);
+                  }}
                 >
                   <Ionicons name="play-circle" size={18} color={colors.maroon} />
                   <Text style={s.playLinkText}>{isHi ? "चलाएं" : "Play Media"}</Text>
+                </TouchableOpacity>
+              )}
+
+              {['IQ', 'EQ'].includes(activeQuotient) && (
+                <TouchableOpacity
+                  style={[s.playLink, { marginLeft: 12 }]}
+                  onPress={() => setReadingModalVisible(true)}
+                >
+                  <Ionicons name="book-outline" size={18} color={colors.maroon} />
+                  <Text style={s.playLinkText}>{isHi ? "पढ़ें" : "Open Reader"}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -761,6 +797,25 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
           isHi={isHi}
         />
       )}
+
+      {content?.mediaUrl && (
+        <AudioPlayerModal
+          visible={audioPlayerVisible}
+          onClose={() => setAudioPlayerVisible(false)}
+          mediaUrl={content.mediaUrl}
+          contentItemId={content.id}
+          title={isHi ? content.titleHi || content.title : content.titleEn || content.title}
+          isHi={isHi}
+        />
+      )}
+
+      <ReadingModeModal
+        visible={readingModalVisible}
+        onClose={() => setReadingModalVisible(false)}
+        title={quotients[activeQuotient].title}
+        body={quotients[activeQuotient].description}
+        lang={userLang}
+      />
     </View>
   );
 }
@@ -917,5 +972,9 @@ const s = StyleSheet.create({
   sensoryStatusTextDone: { color: '#155724' },
   sensoryAckButton: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.maroon },
   sensoryAckButtonActive: { backgroundColor: colors.muted },
-  sensoryAckButtonText: { color: colors.paper, fontSize: 10, fontWeight: '900' }
+  sensoryAckButtonText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
+  safetyBanner: { marginVertical: 12, padding: 12, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 10 },
+  safetyTitle: { fontWeight: 'bold', color: '#B45309', fontSize: 11, marginBottom: 4 },
+  safetyText: { fontSize: 10, color: '#78350F', lineHeight: 14, marginBottom: 6 },
+  safetyDisclaimer: { fontSize: 9, color: '#9A3412', fontWeight: 'bold' }
 });

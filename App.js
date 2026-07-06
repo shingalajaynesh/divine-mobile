@@ -20,6 +20,8 @@ import MobileSettings from './src/views/Settings.js';
 import MobileProgrammes from './src/views/Programmes.js';
 import MobileNotificationCentre from './src/views/NotificationCentre.js';
 import MobileWeeklyReport from './src/views/WeeklyReport.js';
+import MobileDietPlanner from './src/views/DietPlanner.js';
+import MobileExpertConsultation from './src/views/ExpertConsultation.js';
 import { appStyles } from './src/theme/appStyles.js';
 import { colors } from './src/theme/theme.js';
 
@@ -66,11 +68,13 @@ function MobileAppContent() {
     learn: <MobileLibrary t={t} lang={lang} />,
     activity: <MobileProgrammes />,
     baby: <MobileBabyTracker user={user} t={t} />,
-    tools: <MobileLiveClasses t={t} />,
+    tools: <MobileLiveClasses user={user} />,
     more: <MobileSettings user={user} t={t} refetch={refetchMe} onNavigate={navigate} onSignOut={() => signOut(auth)} />,
     community: <MobileForum t={t} />,
     notifications: <MobileNotificationCentre />,
     weeklyReport: <MobileWeeklyReport user={user} lang={lang} onNavigate={navigate} />,
+    dietPlanner: <MobileDietPlanner user={user} />,
+    expertConsultation: <MobileExpertConsultation user={user} />,
   }[activeTab]), [activeTab, refetchMe, t, user, lang]);
 
   const shareApp = () => Share.share({

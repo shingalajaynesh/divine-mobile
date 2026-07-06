@@ -484,3 +484,207 @@ export const RECORD_CONTENT_VIEW_MUTATION = gql`
     }
   }
 `;
+
+export const GET_MY_PLAYLISTS_QUERY = gql`
+  query GetMyPlaylists {
+    getMyPlaylists {
+      id
+      userId
+      name
+      description
+      items {
+        id
+        sortOrder
+        contentItem {
+          id
+          slug
+          contentType
+          translation {
+            title
+            body
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const CREATE_PLAYLIST_MUTATION = gql`
+  mutation CreatePlaylist($name: String!, $description: String) {
+    createPlaylist(name: $name, description: $description) {
+      id
+      userId
+      name
+      description
+    }
+  }
+`;
+
+export const ADD_PLAYLIST_ITEM_MUTATION = gql`
+  mutation AddPlaylistItem($playlistId: ID!, $contentItemId: ID!) {
+    addPlaylistItem(playlistId: $playlistId, contentItemId: $contentItemId) {
+      id
+      playlistId
+      sortOrder
+    }
+  }
+`;
+
+export const REMOVE_PLAYLIST_ITEM_MUTATION = gql`
+  mutation RemovePlaylistItem($playlistId: ID!, $contentItemId: ID!) {
+    removePlaylistItem(playlistId: $playlistId, contentItemId: $contentItemId)
+  }
+`;
+
+export const GET_DIET_PREFERENCE_QUERY = gql`
+  query GetDietPreference {
+    getDietPreference {
+      userId
+      dietType
+      allergens
+      notes
+    }
+  }
+`;
+
+export const GET_MY_MEAL_PLANS_QUERY = gql`
+  query GetMyMealPlans($dayNumber: Int!) {
+    getMyMealPlans(dayNumber: $dayNumber) {
+      id
+      userId
+      dayNumber
+      mealType
+      contentItemId
+      customMealName
+      completed
+    }
+  }
+`;
+
+export const GET_SHOPPING_LIST_QUERY = gql`
+  query GetShoppingList {
+    getShoppingList {
+      id
+      userId
+      ingredientName
+      quantity
+      purchased
+    }
+  }
+`;
+
+export const UPDATE_DIET_PREFERENCE_MUTATION = gql`
+  mutation UpdateDietPreference($input: UpdateDietPreferenceInput!) {
+    updateDietPreference(input: $input) {
+      userId
+      dietType
+      allergens
+      notes
+    }
+  }
+`;
+
+export const TOGGLE_MEAL_PLAN_MUTATION = gql`
+  mutation ToggleMealPlan($mealPlanId: ID!, $completed: Boolean!) {
+    toggleMealPlan(mealPlanId: $mealPlanId, completed: $completed) {
+      id
+      completed
+    }
+  }
+`;
+
+export const ADD_SHOPPING_ITEM_MUTATION = gql`
+  mutation AddShoppingListItem($input: AddShoppingItemInput!) {
+    addShoppingListItem(input: $input) {
+      id
+      ingredientName
+      quantity
+      purchased
+    }
+  }
+`;
+
+export const TOGGLE_SHOPPING_ITEM_MUTATION = gql`
+  mutation ToggleShoppingListItem($itemId: ID!, $purchased: Boolean!) {
+    toggleShoppingListItem(itemId: $itemId, purchased: $purchased) {
+      id
+      purchased
+    }
+  }
+`;
+
+export const CLEAR_PURCHASED_SHOPPING_LIST_MUTATION = gql`
+  mutation ClearPurchasedShoppingList {
+    clearPurchasedShoppingList
+  }
+`;
+
+export const GET_LIVE_CLASSES_DETAILED_QUERY = gql`
+  query GetLiveClassesDetailed {
+    getLiveClassesDetailed {
+      id
+      titleEn
+      titleHi
+      title
+      instructor
+      startTime
+      durationMins
+      videoCallUrl
+      replayUrl
+      isBooked
+      booked
+      attended
+      feedbackScore
+      feedbackNotes
+    }
+  }
+`;
+
+export const BOOK_LIVE_CLASS_DETAILED_MUTATION = gql`
+  mutation BookLiveClassDetailed($liveClassId: ID!) {
+    bookLiveClassDetailed(liveClassId: $liveClassId) {
+      userId
+      liveClassId
+      attended
+    }
+  }
+`;
+
+export const SUBMIT_LIVE_CLASS_FEEDBACK_MUTATION = gql`
+  mutation SubmitLiveClassFeedback($input: SubmitLiveClassFeedbackInput!) {
+    submitLiveClassFeedback(input: $input) {
+      userId
+      liveClassId
+      attended
+      feedbackScore
+      feedbackNotes
+    }
+  }
+`;
+
+export const GET_PRESCRIPTION_SUMMARY_QUERY = gql`
+  query GetPrescriptionSummary {
+    getPrescriptionSummary {
+      id
+      scheduleSlot
+      videoCallUrl
+      status
+      caseNotes
+      followUpTasks
+      expert {
+        id
+        displayName
+      }
+    }
+  }
+`;
+
+export const SUBMIT_CASE_NOTES_MUTATION = gql`
+  mutation SubmitCaseNotes($input: SubmitCaseNotesInput!) {
+    submitCaseNotes(input: $input) {
+      id
+      caseNotes
+      followUpTasks
+    }
+  }
+`;
