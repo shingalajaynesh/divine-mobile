@@ -31,6 +31,13 @@
       "expo-secure-store",
       "@react-native-community/datetimepicker"
     ],
-    "runtimeVersion": { "policy": "appVersion" }
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "bd6e3284-5ff1-4ecc-a0c1-3109b725812c"
+      }
+    }
   }
 }
