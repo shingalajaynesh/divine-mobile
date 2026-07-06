@@ -39,9 +39,30 @@ const START_TRIAL_MUTATION = gql`
   }
 `;
 
-const SUBSCRIBE_TO_PLAN_MUTATION = gql`
-  mutation SubscribeToPlan($planId: ID!, $couponCode: String) {
-    subscribeToPlan(planId: $planId, couponCode: $couponCode) {
+const CREATE_RAZORPAY_ORDER_MUTATION = gql`
+  mutation CreateRazorpayOrder($planId: ID!, $couponCode: String) {
+    createRazorpayOrder(planId: $planId, couponCode: $couponCode) {
+      id
+      amount
+      currency
+      receipt
+    }
+  }
+`;
+
+const VERIFY_RAZORPAY_PAYMENT_MUTATION = gql`
+  mutation VerifyRazorpayPayment(
+    $planId: ID!
+    $razorpayOrderId: String!
+    $razorpayPaymentId: String!
+    $razorpaySignature: String!
+  ) {
+    verifyRazorpayPayment(
+      planId: $planId
+      razorpayOrderId: $razorpayOrderId
+      razorpayPaymentId: $razorpayPaymentId
+      razorpaySignature: $razorpaySignature
+    ) {
       id
       status
     }
@@ -69,7 +90,8 @@ export default function MobileUpgradePlans({ user }) {
   // Queries & Mutations
   const { data, loading, refetch } = useQuery(GET_PLANS_QUERY);
   const [startTrial] = useMutation(START_TRIAL_MUTATION, { onCompleted: () => { refetch(); Alert.alert('Success', 'Trial started!'); } });
-  const [subscribeToPlan] = useMutation(SUBSCRIBE_TO_PLAN_MUTATION, { onCompleted: () => { refetch(); setCheckoutModalOpen(false); Alert.alert('Success', 'Subscribed successfully!'); } });
+  const [createRazorpayOrder] = useMutation(CREATE_RAZORPAY_ORDER_MUTATION);
+  const [verifyRazorpayPayment] = useMutation(VERIFY_RAZORPAY_PAYMENT_MUTATION, { onCompleted: () => { refetch(); setCheckoutModalOpen(false); Alert.alert('Success', 'Subscribed successfully!'); } });
   const [cancelSub] = useMutation(CANCEL_SUBSCRIPTION_MUTATION, { onCompleted: () => { refetch(); Alert.alert('Success', 'Subscription cancelled'); } });
 
   const plans = data?.getPlans || [];
@@ -85,16 +107,43 @@ export default function MobileUpgradePlans({ user }) {
 
   const handleValidateCoupon = async () => {
     if (!couponCode) return;
-    toast.success('Coupon valid: 50% discount applied!');
+    Alert.alert('Coupon Applied', '50% discount code validated!');
     setCouponDiscount({ percent: 50 });
   };
 
   const handleSubscribeSubmit = async () => {
     if (!selectedPlan) return;
     try {
-      await subscribeToPlan({
+      const orderRes = await createRazorpayOrder({
         variables: { planId: selectedPlan.id, couponCode: couponDiscount ? couponCode : null }
       });
+      const orderData = orderRes.data.createRazorpayOrder;
+
+      // Simulated sandbox dialog
+      Alert.alert(
+        'Razorpay Sandbox Checkout',
+        `Simulate secure payment for Order ID: ${orderData.id}\nAmount: ₹${orderData.amount / 100}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Pay Securely',
+            onPress: async () => {
+              try {
+                await verifyRazorpayPayment({
+                  variables: {
+                    planId: selectedPlan.id,
+                    razorpayOrderId: orderData.id,
+                    razorpayPaymentId: 'pay_mock_' + Math.random().toString(36).substring(2, 9),
+                    razorpaySignature: 'mock_signature'
+                  }
+                });
+              } catch (err) {
+                Alert.alert('Verification Failed', err.message);
+              }
+            }
+          }
+        ]
+      );
     } catch (e) {
       Alert.alert('Error', e.message);
     }
@@ -197,7 +246,7 @@ export default function MobileUpgradePlans({ user }) {
             value={couponCode} 
             onChangeText={setCouponCode} 
           />
-          <TouchableOpacity style={s.couponBtn} onPress={() => setCouponDiscount({ percent: 50 })}>
+          <TouchableOpacity style={s.couponBtn} onPress={handleValidateCoupon}>
             <Text style={{ color: colors.paper, fontSize: 10, fontWeight: 'bold' }}>Apply Coupon</Text>
           </TouchableOpacity>
 
