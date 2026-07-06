@@ -24,7 +24,8 @@ export default function MobileSettings({ user, refetch, onNavigate, onSignOut })
   const tiles = [
     { title: 'Saved', icon: 'bookmark-outline', tone: '#DDF1FA', action: () => onNavigate('learn') },
     { title: 'About us', icon: 'information-circle-outline', tone: '#F9E8E8', action: () => Linking.openURL(WEBSITE) },
-    { title: 'Support', icon: 'chatbubbles-outline', tone: '#FFF0D3', action: () => Linking.openURL(SUPPORT) },
+    { title: 'Support', icon: 'chatbubbles-outline', tone: '#FFF0D3', action: () => onNavigate('supportHub') },
+    { title: 'Boutique', icon: 'cart-outline', tone: '#FCE7F3', action: () => onNavigate('storeBoutique') },
     { title: 'Programme', icon: 'ribbon-outline', tone: '#DDF2E4', action: () => onNavigate('tools') },
     { title: 'Community', icon: 'people-outline', tone: '#EFE1FA', action: () => onNavigate('community') },
     { title: 'Weekly Reports', icon: 'bar-chart-outline', tone: '#F9E1EF', action: () => onNavigate('weeklyReport') },
@@ -56,6 +57,7 @@ export default function MobileSettings({ user, refetch, onNavigate, onSignOut })
 
       <View style={s.listCard}>
         <SettingsRow icon="nutrition-outline" label={user.language === 'hi' ? 'भोजन और पोषण योजना' : 'Diet & Nutrition Planner'} onPress={() => onNavigate('dietPlanner')} />
+        <SettingsRow icon="heart-outline" label={user.language === 'hi' ? 'मातृत्व स्वास्थ्य और कल्याण' : 'Pregnancy Wellness Kit'} onPress={() => onNavigate('wellnessTracker')} />
         <SettingsRow icon="people-outline" label={user.language === 'hi' ? 'विशेषज्ञ सलाह' : 'Expert Consulting'} onPress={() => onNavigate('expertConsultation')} />
         <SettingsRow icon="shield-checkmark-outline" label="Privacy & data help" onPress={() => Linking.openURL(`${WEBSITE}/contact`)} />
         <SettingsRow icon="document-text-outline" label="Terms & programme details" onPress={() => Linking.openURL(`${WEBSITE}/contact`)} />

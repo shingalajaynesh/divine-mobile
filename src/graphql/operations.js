@@ -722,3 +722,282 @@ export const SUBMIT_CASE_NOTES_MUTATION = gql`
     }
   }
 `;
+
+export const GET_WELLNESS_DATA_QUERY = gql`
+  query GetWellnessData {
+    getMyVitals {
+      id
+      weight
+      systolicBp
+      diastolicBp
+      kickCount
+      bloodSugar
+      symptoms
+      loggedAt
+    }
+    getAppointments {
+      id
+      title
+      doctorName
+      appointmentDate
+      notes
+    }
+    getMedicineReminders {
+      id
+      name
+      dosage
+      timeOfDay
+      active
+    }
+    getHospitalBagItems {
+      id
+      itemName
+      packed
+      category
+    }
+  }
+`;
+
+export const LOG_VITALS_MUTATION = gql`
+  mutation LogVitalsAndSymptoms($input: LogVitalsAndSymptomsInput!) {
+    logVitalsAndSymptoms(input: $input) {
+      id
+      weight
+      loggedAt
+    }
+  }
+`;
+
+export const ADD_APPOINTMENT_MUTATION = gql`
+  mutation AddAppointment($input: AddAppointmentInput!) {
+    addAppointment(input: $input) {
+      id
+      title
+      appointmentDate
+    }
+  }
+`;
+
+export const DELETE_APPOINTMENT_MUTATION = gql`
+  mutation DeleteAppointment($id: ID!) {
+    deleteAppointment(id: $id)
+  }
+`;
+
+export const ADD_MEDICINE_MUTATION = gql`
+  mutation AddMedicineReminder($input: AddMedicineInput!) {
+    addMedicineReminder(input: $input) {
+      id
+      name
+      timeOfDay
+    }
+  }
+`;
+
+export const TOGGLE_MEDICINE_MUTATION = gql`
+  mutation ToggleMedicineReminder($id: ID!, $active: Boolean!) {
+    toggleMedicineReminder(id: $id, active: $active) {
+      id
+      active
+    }
+  }
+`;
+
+export const DELETE_MEDICINE_MUTATION = gql`
+  mutation DeleteMedicineReminder($id: ID!) {
+    deleteMedicineReminder(id: $id)
+  }
+`;
+
+export const ADD_BAG_ITEM_MUTATION = gql`
+  mutation AddHospitalBagItem($input: AddHospitalBagItemInput!) {
+    addHospitalBagItem(input: $input) {
+      id
+      itemName
+      category
+    }
+  }
+`;
+
+export const TOGGLE_BAG_ITEM_MUTATION = gql`
+  mutation ToggleHospitalBagItem($id: ID!, $packed: Boolean!) {
+    toggleHospitalBagItem(id: $id, packed: $packed) {
+      id
+      packed
+    }
+  }
+`;
+
+export const CLEAR_BAG_ITEMS_MUTATION = gql`
+  mutation ClearPackedHospitalBagItems {
+    clearPackedHospitalBagItems
+  }
+`;
+
+export const GET_SUPPORT_TICKETS_QUERY = gql`
+  query GetSupportTickets {
+    getSupportTickets {
+      id
+      subject
+      description
+      status
+      priority
+      category
+      satisfactionScore
+      satisfactionFeedback
+      whatsappHandoffRequested
+      slaBreached
+      slaExpiresAt
+      createdAt
+      messages {
+        id
+        senderType
+        message
+        createdAt
+        sender {
+          displayName
+        }
+      }
+    }
+  }
+`;
+
+export const CREATE_SUPPORT_TICKET = gql`
+  mutation CreateSupportTicket($input: CreateSupportTicketInput!) {
+    createSupportTicket(input: $input) {
+      id
+      subject
+      createdAt
+    }
+  }
+`;
+
+export const ADD_SUPPORT_MESSAGE = gql`
+  mutation AddSupportTicketMessage($input: AddSupportTicketMessageInput!) {
+    addSupportTicketMessage(input: $input) {
+      id
+      message
+      createdAt
+    }
+  }
+`;
+
+export const CLOSE_SUPPORT_TICKET = gql`
+  mutation CloseSupportTicket($input: CloseSupportTicketInput!) {
+    closeSupportTicket(input: $input) {
+      id
+      status
+      satisfactionScore
+    }
+  }
+`;
+
+export const REQUEST_WHATSAPP_HANDOFF = gql`
+  mutation RequestWhatsappHandoff($id: ID!) {
+    requestWhatsappHandoff(id: $id) {
+      id
+      whatsappHandoffRequested
+    }
+  }
+`;
+
+export const GET_STORE_DATA_QUERY = gql`
+  query GetStoreData {
+    getProducts {
+      id
+      title
+      description
+      price
+      imageUrl
+      inventoryCount
+      category
+    }
+    getCart {
+      id
+      productId
+      quantity
+      product {
+        id
+        title
+        price
+      }
+    }
+    getAddresses {
+      id
+      fullName
+      addressLine1
+      addressLine2
+      city
+      state
+      postalCode
+      phone
+    }
+    getMyOrders {
+      id
+      totalAmount
+      status
+      createdAt
+      address {
+        fullName
+        addressLine1
+        city
+      }
+      items {
+        id
+        quantity
+        price
+        product {
+          title
+        }
+      }
+    }
+  }
+`;
+
+export const ADD_TO_CART_MUTATION = gql`
+  mutation AddToCart($input: CartItemInput!) {
+    addToCart(input: $input) {
+      id
+      quantity
+    }
+  }
+`;
+
+export const UPDATE_CART_QUANTITY_MUTATION = gql`
+  mutation UpdateCartQuantity($input: CartItemInput!) {
+    updateCartQuantity(input: $input) {
+      id
+      quantity
+    }
+  }
+`;
+
+export const REMOVE_FROM_CART_MUTATION = gql`
+  mutation RemoveFromCart($productId: ID!) {
+    removeFromCart(productId: $productId)
+  }
+`;
+
+export const ADD_ADDRESS_MUTATION = gql`
+  mutation AddAddress($input: AddAddressInput!) {
+    addAddress(input: $input) {
+      id
+      fullName
+    }
+  }
+`;
+
+export const DELETE_ADDRESS_MUTATION = gql`
+  mutation DeleteAddress($id: ID!) {
+    deleteAddress(id: $id)
+  }
+`;
+
+export const PLACE_ORDER_MUTATION = gql`
+  mutation PlaceOrder($addressId: ID!) {
+    placeOrder(addressId: $addressId) {
+      id
+      status
+    }
+  }
+`;

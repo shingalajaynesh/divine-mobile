@@ -22,6 +22,9 @@ import MobileNotificationCentre from './src/views/NotificationCentre.js';
 import MobileWeeklyReport from './src/views/WeeklyReport.js';
 import MobileDietPlanner from './src/views/DietPlanner.js';
 import MobileExpertConsultation from './src/views/ExpertConsultation.js';
+import MobileVitalsTracker from './src/views/VitalsTracker.js';
+import MobileSupportHub from './src/views/SupportHub.js';
+import MobileStoreBoutique from './src/views/StoreBoutique.js';
 import { appStyles } from './src/theme/appStyles.js';
 import { colors } from './src/theme/theme.js';
 
@@ -75,6 +78,9 @@ function MobileAppContent() {
     weeklyReport: <MobileWeeklyReport user={user} lang={lang} onNavigate={navigate} />,
     dietPlanner: <MobileDietPlanner user={user} />,
     expertConsultation: <MobileExpertConsultation user={user} />,
+    wellnessTracker: <MobileVitalsTracker user={user} />,
+    supportHub: <MobileSupportHub user={user} />,
+    storeBoutique: <MobileStoreBoutique user={user} />,
   }[activeTab]), [activeTab, refetchMe, t, user, lang]);
 
   const shareApp = () => Share.share({
