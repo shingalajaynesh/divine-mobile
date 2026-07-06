@@ -10,15 +10,93 @@ import {
   ADD_ADDRESS_MUTATION, 
   PLACE_ORDER_MUTATION 
 } from '../graphql/operations.js';
+import { gql } from '@apollo/client';
 import { colors, shadows } from '../theme/theme.js';
+
+const GET_ADMIN_ORDERS_QUERY = gql`
+  query GetAdminOrders {
+    getAdminOrders {
+      id
+      totalAmount
+      status
+      createdAt
+      carrier
+      trackingNumber
+      estimatedDeliveryDate
+      user {
+        displayName
+      }
+      address {
+        fullName
+        addressLine1
+        city
+      }
+      items {
+        id
+        quantity
+        price
+        product {
+          title
+        }
+      }
+      returnRequest {
+        id
+        reason
+        status
+      }
+    }
+  }
+`;
+
+const UPDATE_ORDER_TRACKING_MUTATION = gql`
+  mutation UpdateOrderTracking($orderId: ID!, $carrier: String!, $trackingNumber: String!, $estimatedDeliveryDate: String) {
+    updateOrderTracking(orderId: $orderId, carrier: $carrier, trackingNumber: $trackingNumber, estimatedDeliveryDate: $estimatedDeliveryDate) {
+      id
+      carrier
+      trackingNumber
+    }
+  }
+`;
+
+const UPDATE_ORDER_STATUS_MUTATION = gql`
+  mutation UpdateOrderStatus($orderId: ID!, $status: String!) {
+    updateOrderStatus(orderId: $orderId, status: $status) {
+      id
+      status
+    }
+  }
+`;
+
+const REQUEST_ORDER_RETURN_MUTATION = gql`
+  mutation RequestOrderReturn($orderId: ID!, $reason: String!) {
+    requestOrderReturn(orderId: $orderId, reason: $reason) {
+      id
+      status
+    }
+  }
+`;
+
+const REVIEW_ORDER_RETURN_MUTATION = gql`
+  mutation ReviewOrderReturn($orderReturnId: ID!, $status: String!, $adminNotes: String) {
+    reviewOrderReturn(orderReturnId: $orderReturnId, status: $status, adminNotes: $adminNotes) {
+      id
+      status
+    }
+  }
+`;
 
 export default function MobileStoreBoutique({ user }) {
   const userLang = user?.language || 'en';
   const isHi = userLang === 'hi';
+  const isStaff = user?.role?.roleType === 'ADMIN' || user?.role?.roleType === 'STAFF';
 
   const [activeTab, setActiveTab] = useState('catalog');
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [addressFormOpen, setAddressFormOpen] = useState(false);
+
+  // Return request states
+  const [returnReason, setReturnReason] = useState('');
+  const [returningOrderId, setReturningOrderId] = useState(null);
 
   // Address creation states
   const [fullName, setFullName] = useState('');
@@ -28,8 +106,15 @@ export default function MobileStoreBoutique({ user }) {
   const [postalCode, setPostalCode] = useState('');
   const [phone, setPhone] = useState('');
 
+  // Staff logistcs states
+  const [editingOrderId, setEditingOrderId] = useState(null);
+  const [carrier, setCarrier] = useState('');
+  const [trackingNumber, setTrackingNumber] = useState('');
+
   // Queries & Mutations
   const { data, loading, refetch } = useQuery(GET_STORE_DATA_QUERY);
+  const adminQuery = useQuery(GET_ADMIN_ORDERS_QUERY, { skip: !isStaff });
+
   const [addToCart] = useMutation(ADD_TO_CART_MUTATION, { onCompleted: () => refetch() });
   const [updateCartQty] = useMutation(UPDATE_CART_QUANTITY_MUTATION, { onCompleted: () => refetch() });
   const [removeFromCart] = useMutation(REMOVE_FROM_CART_MUTATION, { onCompleted: () => refetch() });
@@ -42,10 +127,16 @@ export default function MobileStoreBoutique({ user }) {
     }
   });
 
+  const [updateTracking] = useMutation(UPDATE_ORDER_TRACKING_MUTATION, { onCompleted: () => { adminQuery.refetch(); Alert.alert('Success', 'Tracking info saved'); setEditingOrderId(null); } });
+  const [updateStatus] = useMutation(UPDATE_ORDER_STATUS_MUTATION, { onCompleted: () => { adminQuery.refetch(); refetch(); Alert.alert('Success', 'Order status updated'); } });
+  const [requestReturn] = useMutation(REQUEST_ORDER_RETURN_MUTATION, { onCompleted: () => { refetch(); Alert.alert('Success', 'Return request submitted'); setReturningOrderId(null); setReturnReason(''); } });
+  const [reviewReturn] = useMutation(REVIEW_ORDER_RETURN_MUTATION, { onCompleted: () => { adminQuery.refetch(); Alert.alert('Success', 'Return reviewed'); } });
+
   const products = data?.getProducts || [];
   const cartItems = data?.getCart || [];
   const addresses = data?.getAddresses || [];
   const orders = data?.getMyOrders || [];
+  const adminOrders = adminQuery.data?.getAdminOrders || [];
 
   const cartCount = cartItems.reduce((acc, curr) => acc + curr.quantity, 0);
   const cartSubtotal = cartItems.reduce((acc, curr) => acc + (curr.quantity * parseFloat(curr.product.price)), 0);
@@ -111,6 +202,23 @@ export default function MobileStoreBoutique({ user }) {
     }
   };
 
+  const handleRequestReturnSubmit = async () => {
+    if (!returnReason || !returningOrderId) return;
+    try {
+      await requestReturn({ variables: { orderId: returningOrderId, reason: returnReason } });
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    }
+  };
+
+  const handleSaveTracking = async (orderId) => {
+    try {
+      await updateTracking({ variables: { orderId, carrier, trackingNumber } });
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    }
+  };
+
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
       <View style={s.hero}>
@@ -121,7 +229,7 @@ export default function MobileStoreBoutique({ user }) {
       </View>
 
       {/* Tabs */}
-      <View style={s.tabBar}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabBar}>
         <TouchableOpacity 
           style={[s.tabBtn, activeTab === 'catalog' && s.tabBtnActive]} 
           onPress={() => setActiveTab('catalog')}
@@ -146,7 +254,17 @@ export default function MobileStoreBoutique({ user }) {
             {isHi ? 'ऑर्डर' : 'Orders'}
           </Text>
         </TouchableOpacity>
-      </View>
+        {isStaff && (
+          <TouchableOpacity 
+            style={[s.tabBtn, activeTab === 'fulfillment' && s.tabBtnActive]} 
+            onPress={() => setActiveTab('fulfillment')}
+          >
+            <Text style={[s.tabBtnText, activeTab === 'fulfillment' && s.tabBtnTextActive]}>
+              Fulfilment
+            </Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
 
       {loading ? (
         <ActivityIndicator color={colors.maroon} style={{ marginVertical: 30 }} />
@@ -269,7 +387,7 @@ export default function MobileStoreBoutique({ user }) {
             </View>
           )}
         </View>
-      ) : (
+      ) : activeTab === 'orders' ? (
         // Order history
         <View style={{ gap: 12 }}>
           {orders.length === 0 ? (
@@ -279,10 +397,27 @@ export default function MobileStoreBoutique({ user }) {
               <View key={order.id} style={s.card}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Text style={{ fontWeight: 'bold', color: colors.maroon }}>Order #{order.id.substring(0, 6).toUpperCase()}</Text>
-                  <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: '#DCFCE7' }}>
-                    <Text style={{ fontSize: 8, color: '#15803D', fontWeight: 'bold' }}>{order.status.toUpperCase()}</Text>
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
+                    <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: '#DCFCE7' }}>
+                      <Text style={{ fontSize: 8, color: '#15803D', fontWeight: 'bold' }}>{order.status.toUpperCase()}</Text>
+                    </View>
+                    {order.returnRequest && (
+                      <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: '#FFE4E6' }}>
+                        <Text style={{ fontSize: 8, color: '#BE123C', fontWeight: 'bold' }}>RET: {order.returnRequest.status.toUpperCase()}</Text>
+                      </View>
+                    )}
                   </View>
                 </View>
+
+                {order.carrier && (
+                  <View style={s.trackingBox}>
+                    <Ionicons name="compass" size={16} color={colors.maroon} />
+                    <Text style={{ fontSize: 10, flex: 1 }}>
+                      Carrier: {order.carrier} · Waybill: {order.trackingNumber}
+                    </Text>
+                  </View>
+                )}
+
                 <Text style={{ fontSize: 10, color: colors.muted, marginTop: 4 }}>Date: {new Date(order.createdAt).toLocaleDateString()}</Text>
                 
                 <Divider />
@@ -300,9 +435,104 @@ export default function MobileStoreBoutique({ user }) {
                   <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Grand Total:</Text>
                   <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.maroon }}>₹{order.totalAmount}</Text>
                 </View>
+
+                {order.status === 'delivered' && !order.returnRequest && (
+                  <View style={{ marginTop: 12, alignItems: 'flex-end' }}>
+                    <TouchableOpacity 
+                      style={s.returnBtn} 
+                      onPress={() => setReturningOrderId(order.id)}
+                    >
+                      <Text style={s.returnBtnText}>Request Return</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {returningOrderId === order.id && (
+                  <View style={{ marginTop: 10, gap: 8, backgroundColor: '#fcfcfc', padding: 10, borderRadius: 8 }}>
+                    <TextInput 
+                      style={s.input} 
+                      placeholder="Reason for return request" 
+                      value={returnReason} 
+                      onChangeText={setReturnReason} 
+                    />
+                    <TouchableOpacity style={s.saveAddressBtn} onPress={handleRequestReturnSubmit}>
+                      <Text style={s.saveAddressBtnText}>Submit Return</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             ))
           )}
+        </View>
+      ) : (
+        // Fulfillment Admin Tab
+        <View style={{ gap: 12 }}>
+          {adminOrders.map(order => (
+            <View key={order.id} style={s.card}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 12 }}>Customer: {order.user?.displayName}</Text>
+                <View style={{ flexDirection: 'row', gap: 4 }}>
+                  {['pending', 'processing', 'shipped', 'delivered'].map(st => (
+                    <TouchableOpacity 
+                      key={st}
+                      style={[s.miniBadge, order.status === st && { backgroundColor: colors.maroon }]}
+                      onPress={() => updateStatus({ variables: { orderId: order.id, status: st } })}
+                    >
+                      <Text style={[s.miniBadgeText, order.status === st && { color: colors.paper }]}>{st.substring(0, 3)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <Text style={{ fontSize: 10, color: colors.muted, marginVertical: 4 }}>
+                Address: {order.address?.fullName}, {order.address?.addressLine1} ({order.address?.phone})
+              </Text>
+
+              {editingOrderId === order.id ? (
+                <View style={{ gap: 6, marginVertical: 8 }}>
+                  <TextInput style={s.input} placeholder="Carrier" value={carrier} onChangeText={setCarrier} />
+                  <TextInput style={s.input} placeholder="Waybill No" value={trackingNumber} onChangeText={setTrackingNumber} />
+                  <TouchableOpacity style={s.saveAddressBtn} onPress={() => handleSaveTracking(order.id)}>
+                    <Text style={s.saveAddressBtnText}>Save Tracking</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 6 }}>
+                  <Text style={{ fontSize: 10 }}>
+                    {order.carrier ? `${order.carrier} - ${order.trackingNumber}` : 'No Tracking Registered'}
+                  </Text>
+                  <TouchableOpacity onPress={() => { setEditingOrderId(order.id); setCarrier(order.carrier || ''); setTrackingNumber(order.trackingNumber || ''); }}>
+                    <Text style={{ fontSize: 10, color: colors.maroon, fontWeight: 'bold' }}>Edit Tracking</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {order.returnRequest && (
+                <View style={{ background: '#fff1f2', padding: 10, borderRadius: 8, marginTop: 8 }}>
+                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.error }}>Return Requested</Text>
+                  <Text style={{ fontSize: 10, color: colors.ink }}>Reason: "{order.returnRequest.reason}"</Text>
+                  {order.returnRequest.status === 'requested' ? (
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                      <TouchableOpacity 
+                        style={[s.saveAddressBtn, { flex: 1, backgroundColor: '#16a34a' }]}
+                        onPress={() => reviewReturn({ variables: { orderReturnId: order.returnRequest.id, status: 'approved' } })}
+                      >
+                        <Text style={s.saveAddressBtnText}>Approve</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[s.saveAddressBtn, { flex: 1, backgroundColor: colors.error }]}
+                        onPress={() => reviewReturn({ variables: { orderReturnId: order.returnRequest.id, status: 'rejected' } })}
+                      >
+                        <Text style={s.saveAddressBtnText}>Reject</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <Text style={{ fontSize: 10, fontWeight: 'bold' }}>Status: {order.returnRequest.status.toUpperCase()}</Text>
+                  )}
+                </View>
+              )}
+            </View>
+          ))}
         </View>
       )}
     </ScrollView>
@@ -319,8 +549,8 @@ const s = StyleSheet.create({
   hero: { marginBottom: 4 },
   heroTitle: { color: colors.maroonDark, fontSize: 26, fontWeight: '900' },
   heroSubtitle: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 4 },
-  tabBar: { flexDirection: 'row', gap: 6 },
-  tabBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, alignItems: 'center' },
+  tabBar: { flexDirection: 'row', gap: 6, marginBottom: 8 },
+  tabBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, alignItems: 'center' },
   tabBtnActive: { backgroundColor: colors.maroon, borderColor: colors.maroon },
   tabBtnText: { color: colors.muted, fontSize: 10, fontWeight: '800' },
   tabBtnTextActive: { color: colors.paper },
@@ -346,5 +576,10 @@ const s = StyleSheet.create({
   addressTile: { padding: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.line, marginTop: 6 },
   addressTileActive: { borderColor: colors.maroon, backgroundColor: '#fff5f5' },
   checkoutBtn: { height: 46, borderRadius: 10, backgroundColor: colors.maroon, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
-  checkoutBtnText: { color: colors.paper, fontSize: 12, fontWeight: '900' }
+  checkoutBtnText: { color: colors.paper, fontSize: 12, fontWeight: '900' },
+  trackingBox: { background: '#f8fafc', padding: 8, borderRadius: 8, marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  returnBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.error },
+  returnBtnText: { color: colors.error, fontSize: 10, fontWeight: 'bold' },
+  miniBadge: { paddingHorizontal: 6, paddingVertical: 4, borderRadius: 4, backgroundColor: colors.canvas },
+  miniBadgeText: { fontSize: 8, color: colors.muted, fontWeight: 'bold' }
 });

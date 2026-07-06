@@ -25,6 +25,8 @@ import MobileExpertConsultation from './src/views/ExpertConsultation.js';
 import MobileVitalsTracker from './src/views/VitalsTracker.js';
 import MobileSupportHub from './src/views/SupportHub.js';
 import MobileStoreBoutique from './src/views/StoreBoutique.js';
+import MobileUpgradePlans from './src/views/UpgradePlans.js';
+import MobileStaffConsole from './src/views/StaffConsole.js';
 import { appStyles } from './src/theme/appStyles.js';
 import { colors } from './src/theme/theme.js';
 
@@ -81,6 +83,8 @@ function MobileAppContent() {
     wellnessTracker: <MobileVitalsTracker user={user} />,
     supportHub: <MobileSupportHub user={user} />,
     storeBoutique: <MobileStoreBoutique user={user} />,
+    upgradePlans: <MobileUpgradePlans user={user} />,
+    staffConsole: <MobileStaffConsole user={user} />,
   }[activeTab]), [activeTab, refetchMe, t, user, lang]);
 
   const shareApp = () => Share.share({

@@ -26,9 +26,11 @@ export default function MobileSettings({ user, refetch, onNavigate, onSignOut })
     { title: 'About us', icon: 'information-circle-outline', tone: '#F9E8E8', action: () => Linking.openURL(WEBSITE) },
     { title: 'Support', icon: 'chatbubbles-outline', tone: '#FFF0D3', action: () => onNavigate('supportHub') },
     { title: 'Boutique', icon: 'cart-outline', tone: '#FCE7F3', action: () => onNavigate('storeBoutique') },
+    { title: 'Membership', icon: 'card-outline', tone: '#FFEBEB', action: () => onNavigate('upgradePlans') },
     { title: 'Programme', icon: 'ribbon-outline', tone: '#DDF2E4', action: () => onNavigate('tools') },
     { title: 'Community', icon: 'people-outline', tone: '#EFE1FA', action: () => onNavigate('community') },
     { title: 'Weekly Reports', icon: 'bar-chart-outline', tone: '#F9E1EF', action: () => onNavigate('weeklyReport') },
+    ...((user?.role?.roleType === 'ADMIN' || user?.role?.roleType === 'STAFF') ? [{ title: 'Staff Console', icon: 'medical-outline', tone: '#E0F2FE', action: () => onNavigate('staffConsole') }] : [])
   ];
 
   return (
