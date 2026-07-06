@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Linking, Alert } from 'react-native';
 import { useQuery, useMutation } from '@apollo/client';
 import { GET_LIVE_CLASSES_QUERY, BOOK_LIVE_CLASS_MUTATION } from '../graphql/operations';
 import { styles } from '../components/styles.js';
@@ -11,9 +11,9 @@ export default function MobileLiveClasses() {
   const handleBook = async (classId) => {
     try {
       await bookLiveClass({ variables: { classId } });
-      alert("Class Booked Successfully!");
+      Alert.alert('Class booked', 'Your place has been reserved successfully.');
     } catch (e) {
-      alert(e.message);
+      Alert.alert('Unable to book class', e.message);
     }
   };
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useQuery, useMutation } from '@apollo/client';
 import { GET_FORUM_POSTS_QUERY, ADD_FORUM_POST_MUTATION, ADD_FORUM_COMMENT_MUTATION } from '../graphql/operations';
 import { styles } from '../components/styles.js';
@@ -22,7 +22,7 @@ export default function MobileForum({ t }) {
       setTitle('');
       setContent('');
     } catch (e) {
-      alert(e.message);
+      Alert.alert('Unable to publish', e.message);
     } finally {
       setPosting(false);
     }
@@ -35,7 +35,7 @@ export default function MobileForum({ t }) {
       await addForumComment({ variables: { postId, content: text } });
       setCommentText({ ...commentText, [postId]: '' });
     } catch (e) {
-      alert(e.message);
+      Alert.alert('Unable to reply', e.message);
     }
   };
 

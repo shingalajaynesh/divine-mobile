@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ActivityIndicator, Image } from 'react-native';
+import { View, Text, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
 import { useQuery } from '@apollo/client';
 import { GET_BABY_DEVELOPMENT_QUERY } from '../graphql/operations';
 import { styles } from '../components/styles.js';
@@ -16,18 +16,20 @@ export default function MobileBabyTracker({ user, t }) {
     <View style={styles.card}>
       <Text style={styles.cardTitle}>👶 Baby Tracker & Milestones</Text>
       
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 10 }}>
-        <Text style={styles.onboardingLabel}>Select Week:</Text>
-        <select
-          value={String(week)}
-          onChange={(e) => setWeek(parseInt(e.target.value))}
-          style={{ padding: 8, borderRadius: 10, border: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}
-        >
-          {Array.from({ length: 40 }, (_, i) => i + 1).map((w) => (
-            <option key={w} value={String(w)}>Week {w} {w === user.currentWeek ? '(Current)' : ''}</option>
-          ))}
-        </select>
-      </View>
+      <Text style={styles.onboardingLabel}>Select pregnancy week</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 10 }} contentContainerStyle={{ gap: 8 }}>
+        {Array.from({ length: 40 }, (_, i) => i + 1).map((value) => (
+          <TouchableOpacity
+            key={value}
+            onPress={() => setWeek(value)}
+            style={[styles.libraryCategoryTab, week === value && styles.libraryCategoryTabActive]}
+          >
+            <Text style={[styles.libraryCategoryText, week === value && styles.libraryCategoryTextActive]}>
+              {value === user.currentWeek ? `Week ${value} · Now` : `Week ${value}`}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
       {loading ? (
         <ActivityIndicator size="small" color="#f97316" style={{ marginVertical: 20 }} />

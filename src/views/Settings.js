@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Linking } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, Linking, Alert } from 'react-native';
 import { useMutation } from '@apollo/client';
-import { SAVE_ONBOARDING_MUTATION, CREATE_STRIPE_CHECKOUT_MUTATION } from '../graphql/operations';
+import { SAVE_ONBOARDING_MUTATION } from '../graphql/operations';
 import { styles } from '../components/styles.js';
 
 export default function MobileSettings({ user, t, refetch }) {
   const [saveOnboarding] = useMutation(SAVE_ONBOARDING_MUTATION, { onCompleted: () => refetch() });
-  const [createStripeCheckout] = useMutation(CREATE_STRIPE_CHECKOUT_MUTATION);
-  const [loading, setLoading] = useState(false);
 
   const changeLanguage = async (newLang) => {
     try {
@@ -19,21 +17,7 @@ export default function MobileSettings({ user, t, refetch }) {
         }
       });
     } catch (e) {
-      alert(e.message);
-    }
-  };
-
-  const handleCheckout = async (plan) => {
-    setLoading(true);
-    try {
-      const { data } = await createStripeCheckout({ variables: { plan } });
-      if (data?.createStripeCheckout) {
-        Linking.openURL(data.createStripeCheckout);
-      }
-    } catch (e) {
-      alert(e.message);
-    } finally {
-      setLoading(false);
+      Alert.alert('Unable to update language', e.message);
     }
   };
 
@@ -70,17 +54,12 @@ export default function MobileSettings({ user, t, refetch }) {
             <Text style={styles.premiumBadgeText}>✨ Full Premium Course Unlocked</Text>
           </View>
         ) : (
-          <View style={{ gap: 10, marginTop: 12 }}>
-            <TouchableOpacity style={styles.checkoutBtn} onPress={() => handleCheckout('monthly')}>
-              <Text style={styles.checkoutBtnText}>Monthly Premium ($9.99)</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.checkoutBtn} onPress={() => handleCheckout('quarterly')}>
-              <Text style={styles.checkoutBtnText}>Quarterly Premium ($24.99)</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.checkoutBtnGold} onPress={() => handleCheckout('lifetime')}>
-              <Text style={styles.checkoutBtnTextGold}>🚀 Lifetime Access ($49.99)</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.checkoutBtnGold}
+            onPress={() => Linking.openURL('https://wa.me/919638484545?text=Hello%2C%20I%20want%20to%20know%20about%20Divine%20programme%20access.')}
+          >
+            <Text style={styles.checkoutBtnTextGold}>Ask about programme access</Text>
+          </TouchableOpacity>
         )}
       </View>
     </View>

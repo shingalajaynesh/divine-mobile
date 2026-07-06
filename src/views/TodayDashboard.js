@@ -111,7 +111,7 @@ export default function MobileTodayDashboard({ user, t }) {
             <Text style={styles.guideName}>Dr. Sunita Sharma</Text>
             <Text style={styles.guideRoleOrange}>Chief Garbh Sanskar Trainer</Text>
           </View>
-          <TouchableOpacity style={styles.chatButtonOrange} onPress={() => alert('Opening chat with Dr. Sunita...')}>
+          <TouchableOpacity style={styles.chatButtonOrange} onPress={() => Linking.openURL('https://wa.me/919638484545?text=Hello%2C%20I%20would%20like%20to%20book%20an%20expert%20consultation.')}>
             <Text style={styles.chatButtonText}>{t.chat}</Text>
           </TouchableOpacity>
         </View>
@@ -121,7 +121,7 @@ export default function MobileTodayDashboard({ user, t }) {
             <Text style={styles.guideName}>Mrs. Priya Patel</Text>
             <Text style={styles.guideRoleRose}>Prenatal Yoga Expert</Text>
           </View>
-          <TouchableOpacity style={styles.chatButtonRose} onPress={() => alert('Opening chat with Mrs. Priya...')}>
+          <TouchableOpacity style={styles.chatButtonRose} onPress={() => Linking.openURL('https://wa.me/919638484545?text=Hello%2C%20I%20would%20like%20to%20book%20a%20prenatal%20yoga%20consultation.')}>
             <Text style={styles.chatButtonText}>{t.chat}</Text>
           </TouchableOpacity>
         </View>

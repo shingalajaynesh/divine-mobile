@@ -1,8 +1,36 @@
 {
   "expo": {
-    "name": "divine-mobile",
+    "name": "Divine Garbh Sanskar",
     "slug": "divine-mobile",
-    "version": "1.0.0",
-    "scheme": "divinemobile"
+    "version": "1.1.0",
+    "scheme": "divinemobile",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/logo.jpg",
+    "splash": {
+      "image": "./assets/logo.jpg",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFBE8"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.divinegarbhsanskar.app"
+    },
+    "android": {
+      "package": "com.divinegarbhsanskar.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.jpg",
+        "backgroundColor": "#FFFBE8"
+      },
+      "permissions": []
+    },
+    "web": {
+      "favicon": "./assets/logo.jpg"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "@react-native-community/datetimepicker"
+    ],
+    "runtimeVersion": { "policy": "appVersion" }
   }
 }

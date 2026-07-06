@@ -1,28 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import {
-  Text,
-  View,
-  TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
-  Image
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ClerkProvider, SignedIn, SignedOut, useAuth, useUser } from '@clerk/clerk-expo';
-import { ApolloProvider, useQuery, useMutation, gql } from '@apollo/client';
-import { client, setClerkTokenProvider } from './src/graphql/client.js';
-import { LinearGradient } from 'expo-linear-gradient';
+import { ApolloProvider, gql, useMutation, useQuery } from '@apollo/client';
+import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
-
-// Modular Imports
-import { styles } from './src/components/styles.js';
+import { client, setClerkTokenProvider } from './src/graphql/client.js';
 import { ME_QUERY, SAVE_ONBOARDING_MUTATION } from './src/graphql/operations.js';
 import { MOBILE_TRANSLATIONS } from './src/translations/translations.js';
-
-// Components & Views
-import ApolloUserProfile from './src/components/ApolloUserProfile.js';
 import ClerkSignInModal from './src/components/ClerkSignInModal.js';
 import MobileOnboardingCalculator from './src/views/OnboardingCalculator.js';
 import MobileTodayDashboard from './src/views/TodayDashboard.js';
@@ -31,166 +27,109 @@ import MobileBabyTracker from './src/views/BabyGrowthTracker.js';
 import MobileForum from './src/views/CommunityForum.js';
 import MobileLiveClasses from './src/views/LiveClasses.js';
 import MobileSettings from './src/views/Settings.js';
+import { appStyles } from './src/theme/appStyles.js';
+import { colors } from './src/theme/theme.js';
 
-// Warm up the browser for better performance on Android
 WebBrowser.maybeCompleteAuthSession();
 
-// SECURE TOKEN CACHE FOR CLERK MOBILE SESSIONS
 const tokenCache = {
-  async getToken(key) {
-    try {
-      const item = await SecureStore.getItemAsync(key);
-      return item;
-    } catch (err) {
-      return null;
-    }
-  },
-  async saveToken(key, value) {
-    try {
-      return SecureStore.setItemAsync(key, value);
-    } catch (err) {
-      return;
-    }
-  },
+  getToken: (key) => SecureStore.getItemAsync(key),
+  saveToken: (key, value) => SecureStore.setItemAsync(key, value),
 };
 
-const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY || "pk_test_placeholder";
+const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY || 'pk_test_placeholder';
+
+const TABS = [
+  { id: 'today', icon: 'today-outline', activeIcon: 'today', label: 'Today' },
+  { id: 'library', icon: 'library-outline', activeIcon: 'library', label: 'Library' },
+  { id: 'baby', icon: 'heart-outline', activeIcon: 'heart', label: 'Baby' },
+  { id: 'forum', icon: 'chatbubbles-outline', activeIcon: 'chatbubbles', label: 'Community' },
+];
 
 function MobileAppContent() {
   const { signOut } = useAuth();
   const { user: clerkUser, isLoaded: clerkLoaded } = useUser();
-  const [modalVisible, setModalVisible] = useState(false);
+  const [signInOpen, setSignInOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('today');
-
   const { data: meData, loading: meLoading, refetch: refetchMe } = useQuery(ME_QUERY);
-
-  const [syncUser] = useMutation(gql`
-    mutation SyncUser {
-      syncUser {
-        id
-        emailAddress
-      }
-    }
-  `, {
-    onCompleted: () => refetchMe()
-  });
-
+  const [syncUser] = useMutation(gql`mutation SyncUser { syncUser { id emailAddress } }`, { onCompleted: () => refetchMe() });
+  const [saveOnboarding] = useMutation(SAVE_ONBOARDING_MUTATION, { onCompleted: () => refetchMe() });
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    if (clerkLoaded && clerkUser && !meLoading) {
-      const dbUser = meData?.me;
-      if (!dbUser && !syncing) {
-        setSyncing(true);
-        syncUser()
-          .then(() => setSyncing(false))
-          .catch((err) => {
-            console.error('Failed to sync user on mobile:', err);
-            setSyncing(false);
-          });
-      }
+    if (clerkLoaded && clerkUser && !meLoading && !meData?.me && !syncing) {
+      setSyncing(true);
+      syncUser().finally(() => setSyncing(false));
     }
-  }, [clerkLoaded, clerkUser, meData, meLoading, syncing]);
-
-  const [saveOnboarding] = useMutation(SAVE_ONBOARDING_MUTATION, {
-    onCompleted: () => refetchMe()
-  });
+  }, [clerkLoaded, clerkUser, meData, meLoading, syncing, syncUser]);
 
   const user = meData?.me;
   const lang = user?.language || 'en';
   const t = MOBILE_TRANSLATIONS[lang] || MOBILE_TRANSLATIONS.en;
+  const profileInitial = (user?.displayName || clerkUser?.firstName || 'M').charAt(0).toUpperCase();
+
+  const screen = useMemo(() => ({
+    today: <MobileTodayDashboard user={user} t={t} />,
+    library: <MobileLibrary t={t} />,
+    baby: <MobileBabyTracker user={user} t={t} />,
+    forum: <MobileForum t={t} />,
+    classes: <MobileLiveClasses t={t} />,
+    settings: <MobileSettings user={user} t={t} refetch={refetchMe} />,
+  }[activeTab]), [activeTab, refetchMe, t, user]);
+
+  const chooseMore = (tab) => {
+    setActiveTab(tab);
+    setMoreOpen(false);
+  };
 
   return (
-    <LinearGradient
-      colors={['#fef3c7', '#fff1f2', '#ffedd5']}
-      start={{ x: 0, y: 1 }}
-      end={{ x: 1, y: 0 }}
-      style={styles.container}
-    >
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
-        
-        {/* Header / Navbar */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Image
-              source={require('./assets/logo.jpg')}
-              style={styles.logoImage}
-            />
+    <View style={appStyles.root}>
+      <StatusBar style="dark" backgroundColor={colors.paper} />
+      <SafeAreaView style={appStyles.safeArea} edges={['top', 'left', 'right']}>
+        <View style={appStyles.header}>
+          <View style={appStyles.brand}>
+            <Image source={require('./assets/logo.jpg')} style={appStyles.logo} />
             <View>
-              <Text style={styles.headerTitle}>Divine Garbh Sanskar</Text>
-              <Text style={styles.headerSubtitle}>Nurturing Life Within</Text>
+              <Text style={appStyles.brandTitle}>Divine Garbh Sanskar</Text>
+              <Text style={appStyles.brandSubtitle}>Motherhood companion</Text>
             </View>
           </View>
-
           <SignedIn>
-            <View style={styles.headerRight}>
-              <ApolloUserProfile user={user} />
-              <TouchableOpacity style={styles.signOutIconButton} onPress={() => signOut()}>
-                <Text style={styles.signOutIconText}>🚪</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity style={appStyles.profileButton} onPress={() => setMoreOpen(true)} accessibilityLabel="Open account menu">
+              <Text style={appStyles.profileInitial}>{profileInitial}</Text>
+            </TouchableOpacity>
           </SignedIn>
-          
           <SignedOut>
-            <TouchableOpacity style={styles.headerSignInButton} onPress={() => setModalVisible(true)}>
-              <Text style={styles.headerSignInButtonText}>Sign In</Text>
+            <TouchableOpacity style={appStyles.profileButton} onPress={() => setSignInOpen(true)} accessibilityLabel="Sign in">
+              <Ionicons name="log-in-outline" size={20} color={colors.maroon} />
             </TouchableOpacity>
           </SignedOut>
         </View>
 
-        {/* Clerk Sign-In Modal */}
-        <ClerkSignInModal visible={modalVisible} onClose={() => setModalVisible(false)} />
+        <ClerkSignInModal visible={signInOpen} onClose={() => setSignInOpen(false)} />
 
-        {/* Main Content */}
         <SignedIn>
-          {meLoading ? (
-            <View style={styles.centeredContainer}>
-              <ActivityIndicator size="large" color="#f97316" />
-            </View>
+          {meLoading || syncing ? (
+            <View style={appStyles.loading}><ActivityIndicator size="large" color={colors.maroon} /><Text style={appStyles.loadingText}>Preparing your dashboard…</Text></View>
           ) : user && !user.lmpDate ? (
-            /* Onboarding Pregnancy Calculator */
             <MobileOnboardingCalculator saveOnboarding={saveOnboarding} t={t} />
           ) : user ? (
-            /* Main Dashboard Views based on Active Tab */
-            <View style={{ flex: 1 }}>
-              <ScrollView 
-                contentContainerStyle={styles.scrollContent} 
-                showsVerticalScrollIndicator={false}
-              >
-                {activeTab === 'today' && <MobileTodayDashboard user={user} t={t} />}
-                {activeTab === 'library' && <MobileLibrary t={t} />}
-                {activeTab === 'baby' && <MobileBabyTracker user={user} t={t} />}
-                {activeTab === 'forum' && <MobileForum t={t} />}
-                {activeTab === 'classes' && <MobileLiveClasses t={t} />}
-                {activeTab === 'settings' && <MobileSettings user={user} t={t} refetch={refetchMe} />}
-              </ScrollView>
-
-              {/* Bottom Tab Bar */}
-              <View style={styles.tabBar}>
-                <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('today')}>
-                  <Text style={[styles.tabIcon, activeTab === 'today' && styles.tabActiveText]}>📅</Text>
-                  <Text style={[styles.tabLabel, activeTab === 'today' && styles.tabActiveText]}>{t.tab_today}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('library')}>
-                  <Text style={[styles.tabIcon, activeTab === 'library' && styles.tabActiveText]}>📚</Text>
-                  <Text style={[styles.tabLabel, activeTab === 'library' && styles.tabActiveText]}>{t.tab_library}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('baby')}>
-                  <Text style={[styles.tabIcon, activeTab === 'baby' && styles.tabActiveText]}>👶</Text>
-                  <Text style={[styles.tabLabel, activeTab === 'baby' && styles.tabActiveText]}>{t.tab_baby}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('forum')}>
-                  <Text style={[styles.tabIcon, activeTab === 'forum' && styles.tabActiveText]}>💬</Text>
-                  <Text style={[styles.tabLabel, activeTab === 'forum' && styles.tabActiveText]}>{t.tab_forum}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('classes')}>
-                  <Text style={[styles.tabIcon, activeTab === 'classes' && styles.tabActiveText]}>👩‍⚕️</Text>
-                  <Text style={[styles.tabLabel, activeTab === 'classes' && styles.tabActiveText]}>{t.tab_classes}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('settings')}>
-                  <Text style={[styles.tabIcon, activeTab === 'settings' && styles.tabActiveText]}>⚙️</Text>
-                  <Text style={[styles.tabLabel, activeTab === 'settings' && styles.tabActiveText]}>{t.tab_settings}</Text>
+            <View style={appStyles.page}>
+              <ScrollView contentContainerStyle={appStyles.scroll} showsVerticalScrollIndicator={false}>{screen}</ScrollView>
+              <View style={appStyles.tabBar}>
+                {TABS.map((tab) => {
+                  const active = tab.id === activeTab;
+                  return (
+                    <TouchableOpacity key={tab.id} style={[appStyles.tab, active && appStyles.tabActive]} onPress={() => setActiveTab(tab.id)} accessibilityRole="button" accessibilityState={{ selected: active }}>
+                      <Ionicons name={active ? tab.activeIcon : tab.icon} size={20} color={active ? colors.maroon : colors.muted} />
+                      <Text style={[appStyles.tabLabel, active && appStyles.tabLabelActive]}>{tab.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                <TouchableOpacity style={[appStyles.tab, ['classes', 'settings'].includes(activeTab) && appStyles.tabActive]} onPress={() => setMoreOpen(true)}>
+                  <Ionicons name="grid-outline" size={20} color={['classes', 'settings'].includes(activeTab) ? colors.maroon : colors.muted} />
+                  <Text style={[appStyles.tabLabel, ['classes', 'settings'].includes(activeTab) && appStyles.tabLabelActive]}>More</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -198,57 +137,55 @@ function MobileAppContent() {
         </SignedIn>
 
         <SignedOut>
-          <ScrollView 
-            contentContainerStyle={styles.signedOutScrollContent} 
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Welcome / Landing View */}
-            <View style={styles.welcomeContainer}>
-              <View style={styles.welcomeBadge}>
-                <Text style={styles.welcomeBadgeText}>{t.welcome}</Text>
-              </View>
-              <Text style={styles.welcomeTitle}>
-                Begin Your Sacred Journey of{' '}
-                <Text style={styles.welcomeTitleHighlight}>Conscious Pregnancy</Text>
-              </Text>
-              <Text style={styles.welcomeDesc}>{t.journey_desc}</Text>
-
-              <TouchableOpacity style={styles.welcomeButton} onPress={() => setModalVisible(true)}>
-                <LinearGradient
-                  colors={['#f97316', '#f43f5e']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.welcomeButtonGradient}
-                >
-                  <Text style={styles.welcomeButtonText}>Access Your Dashboard</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
+          <ScrollView contentContainerStyle={appStyles.welcome}>
+            <Image source={require('./assets/logo.jpg')} style={appStyles.welcomeLogo} />
+            <Text style={appStyles.welcomeEyebrow}>{t.welcome}</Text>
+            <Text style={appStyles.welcomeTitle}>A calmer, more organised pregnancy journey.</Text>
+            <Text style={appStyles.welcomeText}>{t.journey_desc}</Text>
+            <TouchableOpacity style={appStyles.primaryButton} onPress={() => setSignInOpen(true)}>
+              <Text style={appStyles.primaryButtonText}>Sign in to your dashboard</Text>
+            </TouchableOpacity>
+            <Text style={appStyles.version}>Divine Mobile · v1.1.0</Text>
           </ScrollView>
         </SignedOut>
+
+        <Modal visible={moreOpen} transparent animationType="slide" onRequestClose={() => setMoreOpen(false)}>
+          <Pressable style={appStyles.moreBackdrop} onPress={() => setMoreOpen(false)}>
+            <Pressable style={appStyles.moreSheet} onPress={(event) => event.stopPropagation()}>
+              <View style={appStyles.sheetHandle} />
+              <Text style={appStyles.sheetTitle}>More</Text>
+              <TouchableOpacity style={appStyles.moreAction} onPress={() => chooseMore('classes')}>
+                <Ionicons name="videocam-outline" size={22} color={colors.maroon} /><Text style={appStyles.moreActionText}>Live classes</Text><Ionicons name="chevron-forward" size={18} color={colors.muted} />
+              </TouchableOpacity>
+              <TouchableOpacity style={appStyles.moreAction} onPress={() => chooseMore('settings')}>
+                <Ionicons name="settings-outline" size={22} color={colors.maroon} /><Text style={appStyles.moreActionText}>Preferences</Text><Ionicons name="chevron-forward" size={18} color={colors.muted} />
+              </TouchableOpacity>
+              <TouchableOpacity style={[appStyles.moreAction, appStyles.signOutAction]} onPress={() => { setMoreOpen(false); signOut(); }}>
+                <Ionicons name="log-out-outline" size={22} color={colors.error} /><Text style={[appStyles.moreActionText, { color: colors.error }]}>Sign out</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </Pressable>
+        </Modal>
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
+}
+
+function ApolloTokenBridge() {
+  const { getToken } = useAuth();
+  useEffect(() => setClerkTokenProvider(getToken), [getToken]);
+  return null;
 }
 
 export default function App() {
   return (
-    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
-      <ApolloProvider client={client}>
-        <ApolloTokenBridge />
-        <MobileAppContent />
-      </ApolloProvider>
-    </ClerkProvider>
+    <SafeAreaProvider>
+      <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
+        <ApolloProvider client={client}>
+          <ApolloTokenBridge />
+          <MobileAppContent />
+        </ApolloProvider>
+      </ClerkProvider>
+    </SafeAreaProvider>
   );
-}
-
-// Sub-component to sync Clerk authentication token with Apollo Client
-function ApolloTokenBridge() {
-  const { getToken } = useAuth();
-  
-  useEffect(() => {
-    setClerkTokenProvider(getToken);
-  }, [getToken]);
-
-  return null;
 }
