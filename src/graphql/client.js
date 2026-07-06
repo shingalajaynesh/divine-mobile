@@ -10,11 +10,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
 
-let getClerkTokenFn = null;
-
-export const setClerkTokenProvider = (fn) => {
-  getClerkTokenFn = fn;
-};
+import { auth } from '../config/firebase.js';
 
 let deviceId = null;
 const getDeviceId = async () => {
@@ -37,12 +33,12 @@ const getDeviceName = () => {
 
 const authLink = setContext(async (_, { headers }) => {
   let token = null;
-  if (getClerkTokenFn) {
-    try {
-      token = await getClerkTokenFn();
-    } catch (e) {
-      console.warn('Error fetching Clerk token:', e);
+  try {
+    if (auth.currentUser) {
+      token = await auth.currentUser.getIdToken();
     }
+  } catch (e) {
+    console.warn('Error fetching Firebase token:', e);
   }
 
   const devId = await getDeviceId();

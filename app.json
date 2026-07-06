@@ -6,9 +6,9 @@
     "scheme": "divinemobile",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "icon": "./assets/logo.jpg",
+    "icon": "./assets/logo.png",
     "splash": {
-      "image": "./assets/logo.jpg",
+      "image": "./assets/logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFBE8"
     },
@@ -19,17 +19,18 @@
     "android": {
       "package": "com.divinegarbhsanskar.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.jpg",
+        "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#FFFBE8"
       },
       "permissions": []
     },
     "web": {
-      "favicon": "./assets/logo.jpg"
+      "favicon": "./assets/logo.png"
     },
     "plugins": [
       "expo-secure-store",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-font"
     ],
     "runtimeVersion": {
       "policy": "appVersion"
