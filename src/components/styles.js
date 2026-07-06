@@ -160,7 +160,7 @@ const baseStyles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
   },
-  
+
   // Custom Card Layouts
   card: {
     backgroundColor: '#ffffff',

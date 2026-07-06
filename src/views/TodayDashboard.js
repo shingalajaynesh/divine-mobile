@@ -21,7 +21,7 @@ export default function MobileTodayDashboard({ user, t }) {
     <View style={{ gap: 20 }}>
       {/* Banner */}
       <LinearGradient
-        colors={['#fb923c', '#f43f5e']}
+        colors={['#c2410c', '#68111B']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.greetingCard}
@@ -48,7 +48,7 @@ export default function MobileTodayDashboard({ user, t }) {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>📅 280-Day Content Calendar</Text>
         <Text style={styles.cardDesc}>Select a pregnancy day to unlock the story or ritual:</Text>
-        
+
         <View style={styles.daySelectorRow}>
           <TextInput
             style={styles.dayInput}
@@ -85,7 +85,7 @@ export default function MobileTodayDashboard({ user, t }) {
 
       {/* Daily Affirmation */}
       <LinearGradient
-        colors={['#f43f5e', '#ec4899']}
+        colors={['#be123c', '#68111B']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.affirmationCard}
