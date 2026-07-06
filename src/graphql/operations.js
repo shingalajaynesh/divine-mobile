@@ -142,12 +142,14 @@ export const GET_BABY_DEVELOPMENT_QUERY = gql`
 `;
 
 export const GET_FORUM_POSTS_QUERY = gql`
-  query GetForumPosts {
-    getForumPosts {
+  query GetForumPosts($category: String) {
+    getForumPosts(category: $category) {
       id
       title
       content
+      category
       likesCount
+      isLiked
       createdAt
       user {
         displayName
@@ -155,6 +157,7 @@ export const GET_FORUM_POSTS_QUERY = gql`
       comments {
         id
         content
+        reported
         createdAt
         user {
           displayName
@@ -165,11 +168,12 @@ export const GET_FORUM_POSTS_QUERY = gql`
 `;
 
 export const ADD_FORUM_POST_MUTATION = gql`
-  mutation AddForumPost($title: String!, $content: String!) {
-    addForumPost(title: $title, content: $content) {
+  mutation AddForumPost($title: String!, $content: String!, $category: String) {
+    addForumPost(title: $title, content: $content, category: $category) {
       id
       title
       content
+      category
     }
   }
 `;
@@ -179,6 +183,36 @@ export const ADD_FORUM_COMMENT_MUTATION = gql`
     addForumComment(postId: $postId, content: $content) {
       id
       content
+    }
+  }
+`;
+
+export const TOGGLE_POST_LIKE_MUTATION = gql`
+  mutation TogglePostLike($postId: ID!) {
+    togglePostLike(postId: $postId) {
+      id
+      likesCount
+      isLiked
+    }
+  }
+`;
+
+export const REPORT_POST_MUTATION = gql`
+  mutation ReportPost($postId: ID!) {
+    reportPost(postId: $postId) {
+      id
+      reported
+      reportsCount
+    }
+  }
+`;
+
+export const REPORT_COMMENT_MUTATION = gql`
+  mutation ReportComment($commentId: ID!) {
+    reportComment(commentId: $commentId) {
+      id
+      reported
+      reportsCount
     }
   }
 `;

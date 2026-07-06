@@ -70,7 +70,7 @@ function MobileAppContent() {
     baby: <MobileBabyTracker user={user} t={t} />,
     tools: <MobileLiveClasses user={user} />,
     more: <MobileSettings user={user} t={t} refetch={refetchMe} onNavigate={navigate} onSignOut={() => signOut(auth)} />,
-    community: <MobileForum t={t} />,
+    community: <MobileForum user={user} />,
     notifications: <MobileNotificationCentre />,
     weeklyReport: <MobileWeeklyReport user={user} lang={lang} onNavigate={navigate} />,
     dietPlanner: <MobileDietPlanner user={user} />,
