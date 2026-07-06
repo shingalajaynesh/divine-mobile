@@ -25,4 +25,4 @@ jobs:
         run: npm install
 
       - name: Run Expo export compilation check
-        run: npx expo export
+        run: npx expo export --platform all --output-dir dist-check
