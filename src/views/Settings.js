@@ -27,7 +27,7 @@ export default function MobileSettings({ user, refetch, onNavigate, onSignOut })
     { title: 'Support', icon: 'chatbubbles-outline', tone: '#FFF0D3', action: () => Linking.openURL(SUPPORT) },
     { title: 'Programme', icon: 'ribbon-outline', tone: '#DDF2E4', action: () => onNavigate('tools') },
     { title: 'Community', icon: 'people-outline', tone: '#EFE1FA', action: () => onNavigate('community') },
-    { title: 'Career', icon: 'briefcase-outline', tone: '#F9E1EF', action: () => Linking.openURL(`${WEBSITE}/contact`) },
+    { title: 'Weekly Reports', icon: 'bar-chart-outline', tone: '#F9E1EF', action: () => onNavigate('weeklyReport') },
   ];
 
   return (

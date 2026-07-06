@@ -17,6 +17,9 @@ import MobileBabyTracker from './src/views/BabyGrowthTracker.js';
 import MobileForum from './src/views/CommunityForum.js';
 import MobileLiveClasses from './src/views/LiveClasses.js';
 import MobileSettings from './src/views/Settings.js';
+import MobileProgrammes from './src/views/Programmes.js';
+import MobileNotificationCentre from './src/views/NotificationCentre.js';
+import MobileWeeklyReport from './src/views/WeeklyReport.js';
 import { appStyles } from './src/theme/appStyles.js';
 import { colors } from './src/theme/theme.js';
 
@@ -60,12 +63,15 @@ function MobileAppContent() {
   const navigate = (tab) => setActiveTab(tab);
   const screen = useMemo(() => ({
     home: <MobileTodayDashboard user={user} t={t} onNavigate={navigate} />,
-    learn: <MobileLibrary t={t} />,
-    activity: <MobileBabyTracker user={user} t={t} />,
+    learn: <MobileLibrary t={t} lang={lang} />,
+    activity: <MobileProgrammes />,
+    baby: <MobileBabyTracker user={user} t={t} />,
     tools: <MobileLiveClasses t={t} />,
     more: <MobileSettings user={user} t={t} refetch={refetchMe} onNavigate={navigate} onSignOut={() => signOut(auth)} />,
     community: <MobileForum t={t} />,
-  }[activeTab]), [activeTab, refetchMe, t, user]);
+    notifications: <MobileNotificationCentre />,
+    weeklyReport: <MobileWeeklyReport user={user} lang={lang} onNavigate={navigate} />,
+  }[activeTab]), [activeTab, refetchMe, t, user, lang]);
 
   const shareApp = () => Share.share({
     message: 'Join me on Divine Garbh Sanskar for a mindful pregnancy journey: https://www.thedivinegarbhsanskar.com',
@@ -88,7 +94,7 @@ function MobileAppContent() {
               <TouchableOpacity style={appStyles.iconButton} onPress={shareApp} accessibilityLabel="Share Divine app">
                 <Ionicons name="share-social-outline" size={22} color={colors.maroon} />
               </TouchableOpacity>
-              <TouchableOpacity style={appStyles.iconButton} onPress={() => Alert.alert('You are all caught up', 'New reminders will appear here.')} accessibilityLabel="Notifications">
+              <TouchableOpacity style={appStyles.iconButton} onPress={() => setActiveTab('notifications')} accessibilityLabel="Notifications">
                 <Ionicons name="notifications-outline" size={22} color={colors.maroon} />
                 <View style={appStyles.notificationDot} />
               </TouchableOpacity>

@@ -1,5 +1,70 @@
 import { gql } from '@apollo/client';
 
+export const PROGRAM_CATALOG_QUERY = gql`
+  query ProgramCatalog {
+    programCatalog {
+      id slug name summary language journeyStage isPremium
+      modules { id title description unlockDay lessons { id slug title summary lessonType durationMins releaseDay activities { id slug title instructions quotient activityType estimatedMins points } } }
+    }
+  }
+`;
+
+export const MY_PROGRAM_ENROLLMENTS_QUERY = gql`
+  query MyProgramEnrollments { myProgramEnrollments { id status program { id slug name } activityProgress { id activityId status } } }
+`;
+
+export const ENROLL_IN_PROGRAM_MUTATION = gql`
+  mutation EnrollInProgram($programId: ID!) { enrollInProgram(programId: $programId) { id status program { id name } } }
+`;
+export const CONTENT_FEED_QUERY = gql`
+  query ContentFeed($language: String, $contentType: String) { contentFeed(language: $language, contentType: $contentType) { id slug contentType visibility category { slug name } coverAsset { url kind altText } translation { language title summary body } } }
+`;
+
+export const SEARCH_CONTENT_QUERY = gql`
+  query SearchContent($query: String!, $language: String, $contentType: String) {
+    searchContent(query: $query, language: $language, contentType: $contentType) {
+      id slug contentType visibility
+      category { id slug name }
+      translation { id language title summary body }
+    }
+  }
+`;
+
+export const RECENT_CONTENT_SEARCHES_QUERY = gql`
+  query RecentContentSearches { recentContentSearches { id query resultCount searchedAt } }
+`;
+
+export const SAVED_CONTENT_QUERY = gql`
+  query SavedContent($kind: String, $language: String) {
+    savedContent(kind: $kind, language: $language) {
+      id slug contentType visibility
+      category { id slug name }
+      translation { id language title summary body }
+    }
+  }
+`;
+
+export const SET_CONTENT_BOOKMARK_MUTATION = gql`
+  mutation SetContentBookmark($input: ContentBookmarkInput!) { setContentBookmark(input: $input) { contentItemId kind saved } }
+`;
+
+export const CLEAR_RECENT_CONTENT_SEARCHES_MUTATION = gql`
+  mutation ClearRecentContentSearches { clearRecentContentSearches }
+`;
+
+export const NOTIFICATION_CENTRE_QUERY = gql`
+  query NotificationCentre {
+    myNotifications { unreadCount items { id kind title body actionUrl status readAt createdAt } }
+    myNotificationPreferences { id pushEnabled emailEnabled whatsappEnabled marketingAllowed quietStart quietEnd timezone }
+    myReminderSchedules { id reminderType label localTime daysOfWeek channel enabled }
+  }
+`;
+export const SET_NOTIFICATION_STATUS_MUTATION = gql`mutation SetNotificationStatus($id: ID!, $status: String!) { setNotificationStatus(id: $id, status: $status) { id status readAt } }`;
+export const MARK_ALL_NOTIFICATIONS_READ_MUTATION = gql`mutation MarkAllNotificationsRead { markAllNotificationsRead }`;
+export const UPDATE_NOTIFICATION_PREFERENCES_MUTATION = gql`mutation UpdateNotificationPreferences($input: NotificationPreferenceInput!) { updateNotificationPreferences(input: $input) { id pushEnabled emailEnabled whatsappEnabled marketingAllowed quietStart quietEnd timezone } }`;
+export const SAVE_REMINDER_SCHEDULE_MUTATION = gql`mutation SaveReminderSchedule($input: ReminderScheduleInput!) { saveReminderSchedule(input: $input) { id reminderType label localTime daysOfWeek channel enabled } }`;
+export const DELETE_REMINDER_SCHEDULE_MUTATION = gql`mutation DeleteReminderSchedule($id: ID!) { deleteReminderSchedule(id: $id) }`;
+
 export const ME_QUERY = gql`
   query GetMe {
     me {
@@ -144,5 +209,278 @@ export const BOOK_LIVE_CLASS_MUTATION = gql`
 export const CREATE_STRIPE_CHECKOUT_MUTATION = gql`
   mutation CreateStripeCheckout($plan: String!) {
     createStripeCheckout(plan: $plan)
+  }
+`;
+
+export const MY_DAILY_PROGRESS_QUERY = gql`
+  query MyDailyProgress($dayNumber: Int!) {
+    myDailyProgress(dayNumber: $dayNumber) {
+      id
+      dayNumber
+      pqCompleted
+      iqCompleted
+      eqCompleted
+      sqCompleted
+      notes
+      completedAt
+    }
+  }
+`;
+
+export const MY_TIMELINE_OVERVIEW_QUERY = gql`
+  query MyTimelineOverview($dayNumber: Int) {
+    myTimelineOverview(dayNumber: $dayNumber) {
+      currentDay
+      currentWeek
+      currentTrimester
+      selectedDay
+      selectedWeek
+      selectedMonth
+      selectedTrimester
+      weekStartDay
+      weekEndDay
+      isLocked
+      unlockDate
+      completedCount
+      progressPercent
+      days {
+        dayNumber
+        locked
+        completed
+        pqCompleted
+        iqCompleted
+        eqCompleted
+        sqCompleted
+      }
+      selectedProgress {
+        id
+        dayNumber
+        pqCompleted
+        iqCompleted
+        eqCompleted
+        sqCompleted
+        pqDurationMins
+        iqDurationMins
+        eqDurationMins
+        sqDurationMins
+        pqEvidence
+        iqEvidence
+        eqEvidence
+        sqEvidence
+        pqNotes
+        iqNotes
+        eqNotes
+        sqNotes
+        notes
+        completedAt
+      }
+    }
+  }
+`;
+
+export const MY_DAILY_PROGRESS_RANGE_QUERY = gql`
+  query MyDailyProgressRange($startDay: Int!, $endDay: Int!) {
+    myDailyProgressRange(startDay: $startDay, endDay: $endDay) {
+      id
+      dayNumber
+      pqCompleted
+      iqCompleted
+      eqCompleted
+      sqCompleted
+      pqDurationMins
+      iqDurationMins
+      eqDurationMins
+      sqDurationMins
+      pqEvidence
+      iqEvidence
+      eqEvidence
+      sqEvidence
+      pqNotes
+      iqNotes
+      eqNotes
+      sqNotes
+      notes
+      completedAt
+    }
+  }
+`;
+
+export const TOGGLE_DAILY_ACTIVITY_MUTATION = gql`
+  mutation ToggleDailyActivity($dayNumber: Int!, $quotient: String!) {
+    toggleDailyActivity(dayNumber: $dayNumber, quotient: $quotient) {
+      id
+      dayNumber
+      pqCompleted
+      iqCompleted
+      eqCompleted
+      sqCompleted
+      notes
+      completedAt
+    }
+  }
+`;
+
+export const SAVE_DAILY_ACTIVITY_DETAILS_MUTATION = gql`
+  mutation SaveDailyActivityDetails($input: DailyActivityDetailsInput!) {
+    saveDailyActivityDetails(input: $input) {
+      id
+      dayNumber
+      pqCompleted
+      iqCompleted
+      eqCompleted
+      sqCompleted
+      pqDurationMins
+      iqDurationMins
+      eqDurationMins
+      sqDurationMins
+      pqEvidence
+      iqEvidence
+      eqEvidence
+      sqEvidence
+      pqNotes
+      iqNotes
+      eqNotes
+      sqNotes
+      notes
+      completedAt
+    }
+  }
+`;
+
+export const GET_DAILY_QUIZ_QUERY = gql`
+  query GetDailyQuiz($dayNumber: Int!) {
+    getDailyQuiz(dayNumber: $dayNumber) {
+      id
+      dayNumber
+      questionText
+      options
+      correctOptionIndex
+      explanation
+    }
+  }
+`;
+
+export const GET_MY_QUIZ_ATTEMPT_QUERY = gql`
+  query GetMyQuizAttempt($dayNumber: Int!) {
+    getMyQuizAttempt(dayNumber: $dayNumber) {
+      id
+      userId
+      dayNumber
+      selectedOptionIndex
+      isCorrect
+      attemptedAt
+    }
+  }
+`;
+
+export const SUBMIT_QUIZ_ANSWER_MUTATION = gql`
+  mutation SubmitQuizAnswer($dayNumber: Int!, $selectedOptionIndex: Int!) {
+    submitQuizAnswer(dayNumber: $dayNumber, selectedOptionIndex: $selectedOptionIndex) {
+      id
+      userId
+      dayNumber
+      selectedOptionIndex
+      isCorrect
+      attemptedAt
+    }
+  }
+`;
+
+export const GET_PARTNER_ACTIVITY_QUERY = gql`
+  query GetPartnerActivity($dayNumber: Int!) {
+    getPartnerActivity(dayNumber: $dayNumber) {
+      id
+      dayNumber
+      title
+      description
+    }
+  }
+`;
+
+export const GET_MY_PARTNER_ACTIVITY_LOG_QUERY = gql`
+  query GetMyPartnerActivityLog($dayNumber: Int!) {
+    getMyPartnerActivityLog(dayNumber: $dayNumber) {
+      id
+      userId
+      dayNumber
+      partnerAcknowledged
+      completedAt
+    }
+  }
+`;
+
+export const ACKNOWLEDGE_PARTNER_ACTIVITY_MUTATION = gql`
+  mutation AcknowledgePartnerActivity($dayNumber: Int!) {
+    acknowledgePartnerActivity(dayNumber: $dayNumber) {
+      id
+      userId
+      dayNumber
+      partnerAcknowledged
+      completedAt
+    }
+  }
+`;
+
+export const GET_SENSORY_ACTIVITY_QUERY = gql`
+  query GetSensoryActivity($dayNumber: Int!) {
+    getSensoryActivity(dayNumber: $dayNumber) {
+      id
+      dayNumber
+      senseType
+      title
+      description
+    }
+  }
+`;
+
+export const GET_MY_SENSORY_ACTIVITY_LOG_QUERY = gql`
+  query GetMySensoryActivityLog($dayNumber: Int!) {
+    getMySensoryActivityLog(dayNumber: $dayNumber) {
+      id
+      userId
+      dayNumber
+      completed
+      completedAt
+    }
+  }
+`;
+
+export const TOGGLE_SENSORY_ACTIVITY_MUTATION = gql`
+  mutation ToggleSensoryActivity($dayNumber: Int!) {
+    toggleSensoryActivity(dayNumber: $dayNumber) {
+      id
+      userId
+      dayNumber
+      completed
+      completedAt
+    }
+  }
+`;
+
+export const GET_CONTENT_VIEW_HISTORY_QUERY = gql`
+  query GetContentViewHistory($contentItemId: ID, $dailyContentId: ID) {
+    getContentViewHistory(contentItemId: $contentItemId, dailyContentId: $dailyContentId) {
+      id
+      contentItemId
+      dailyContentId
+      lastPositionSeconds
+      progressPercent
+      completed
+      viewedAt
+    }
+  }
+`;
+
+export const RECORD_CONTENT_VIEW_MUTATION = gql`
+  mutation RecordContentView($input: ContentViewInput!) {
+    recordContentView(input: $input) {
+      id
+      contentItemId
+      dailyContentId
+      lastPositionSeconds
+      progressPercent
+      completed
+      viewedAt
+    }
   }
 `;
