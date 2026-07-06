@@ -65,8 +65,8 @@ function MobileAppContent() {
   const { data: meData, loading: meLoading, refetch: refetchMe } = useQuery(ME_QUERY);
 
   const [syncUser] = useMutation(gql`
-    mutation SyncUser($payload: String!) {
-      syncUser(clerkUserPayload: $payload) {
+    mutation SyncUser {
+      syncUser {
         id
         emailAddress
       }
@@ -82,16 +82,7 @@ function MobileAppContent() {
       const dbUser = meData?.me;
       if (!dbUser && !syncing) {
         setSyncing(true);
-        const payload = {
-          id: clerkUser.id,
-          first_name: clerkUser.firstName,
-          last_name: clerkUser.lastName,
-          image_url: clerkUser.imageUrl,
-          email_addresses: clerkUser.emailAddresses.map(email => ({
-            email_address: email.emailAddress
-          }))
-        };
-        syncUser({ variables: { payload: JSON.stringify(payload) } })
+        syncUser()
           .then(() => setSyncing(false))
           .catch((err) => {
             console.error('Failed to sync user on mobile:', err);
