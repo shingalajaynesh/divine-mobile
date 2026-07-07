@@ -94,6 +94,12 @@ export default function MobileOnboardingCalculator({ saveOnboarding, t }) {
         >
           <Text style={[styles.langSelectorBtnText, language === 'hi' && styles.langSelectorBtnTextActive]}>हिंदी (Hindi)</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.langSelectorBtn, language === 'gu' && styles.langSelectorBtnActive]}
+          onPress={() => setLanguage('gu')}
+        >
+          <Text style={[styles.langSelectorBtnText, language === 'gu' && styles.langSelectorBtnTextActive]}>ગુજરાતી (Gujarati)</Text>
+        </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.onboardingSubmitBtn} onPress={handleSave} disabled={submitting}>

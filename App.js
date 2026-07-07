@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, Alert, Image, Linking, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ApolloProvider, gql, useMutation, useQuery } from '@apollo/client';
 import { Ionicons } from '@expo/vector-icons';
@@ -42,8 +43,10 @@ const TABS = [
 function MobileAppContent() {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [authLoaded, setAuthLoaded] = useState(false);
+  const [cacheLoaded, setCacheLoaded] = useState(false);
   const [signInOpen, setSignInOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
+  const [cachedUser, setCachedUser] = useState(null);
   const { data: meData, loading: meLoading, refetch: refetchMe } = useQuery(ME_QUERY);
   const [syncUser] = useMutation(gql`mutation SyncUser { syncUser { id emailAddress } }`, { onCompleted: () => refetchMe() });
   const [saveOnboarding] = useMutation(SAVE_ONBOARDING_MUTATION, { onCompleted: () => refetchMe() });
@@ -52,40 +55,93 @@ function MobileAppContent() {
   useEffect(() => onAuthStateChanged(auth, (user) => {
     setFirebaseUser(user);
     setAuthLoaded(true);
+    if (!user) {
+      setCachedUser(null);
+      AsyncStorage.removeItem('divine_cached_user').catch(() => {});
+    }
   }), []);
 
   useEffect(() => {
-    if (authLoaded && firebaseUser && !meLoading && !meData?.me && !syncing) {
+    async function restoreCache() {
+      try {
+        const savedCache = await AsyncStorage.getItem('apollo-cache-persist');
+        if (savedCache) {
+          client.cache.restore(JSON.parse(savedCache));
+        }
+        const storedUser = await AsyncStorage.getItem('divine_cached_user');
+        if (storedUser) {
+          setCachedUser(JSON.parse(storedUser));
+        }
+      } catch (e) {
+        console.warn('Failed to restore cache from AsyncStorage:', e);
+      } finally {
+        setCacheLoaded(true);
+      }
+    }
+    restoreCache();
+  }, []);
+
+  useEffect(() => {
+    if (authLoaded && firebaseUser && !meLoading && !(meData?.me || cachedUser) && !syncing) {
       setSyncing(true);
       syncUser().finally(() => setSyncing(false));
     }
-  }, [authLoaded, firebaseUser, meData, meLoading, syncing, syncUser]);
+  }, [authLoaded, firebaseUser, meData, meLoading, syncing, syncUser, cachedUser]);
 
-  const user = meData?.me;
+  useEffect(() => {
+    if (meData?.me) {
+      setCachedUser(meData.me);
+      AsyncStorage.setItem('divine_cached_user', JSON.stringify(meData.me)).catch(err => {
+        console.warn('Failed to save cached user profile:', err);
+      });
+    }
+  }, [meData]);
+
+  const user = meData?.me || cachedUser;
   const isSignedIn = Boolean(firebaseUser);
   const lang = user?.language || 'en';
   const t = MOBILE_TRANSLATIONS[lang] || MOBILE_TRANSLATIONS.en;
   const displayName = user?.displayName || firebaseUser?.displayName || 'Divine Mother';
 
   const navigate = (tab) => setActiveTab(tab);
-  const screen = useMemo(() => ({
-    home: <MobileTodayDashboard user={user} t={t} onNavigate={navigate} />,
-    learn: <MobileLibrary t={t} lang={lang} />,
-    activity: <MobileProgrammes />,
-    baby: <MobileBabyTracker user={user} t={t} />,
-    tools: <MobileLiveClasses user={user} />,
-    more: <MobileSettings user={user} t={t} refetch={refetchMe} onNavigate={navigate} onSignOut={() => signOut(auth)} />,
-    community: <MobileForum user={user} />,
-    notifications: <MobileNotificationCentre />,
-    weeklyReport: <MobileWeeklyReport user={user} lang={lang} onNavigate={navigate} />,
-    dietPlanner: <MobileDietPlanner user={user} />,
-    expertConsultation: <MobileExpertConsultation user={user} />,
-    wellnessTracker: <MobileVitalsTracker user={user} />,
-    supportHub: <MobileSupportHub user={user} />,
-    storeBoutique: <MobileStoreBoutique user={user} />,
-    upgradePlans: <MobileUpgradePlans user={user} />,
-    staffConsole: <MobileStaffConsole user={user} />,
-  }[activeTab]), [activeTab, refetchMe, t, user, lang]);
+  const screen = useMemo(() => {
+    switch (activeTab) {
+      case 'home':
+        return <MobileTodayDashboard user={user} t={t} onNavigate={navigate} />;
+      case 'learn':
+        return <MobileLibrary t={t} lang={lang} />;
+      case 'activity':
+        return <MobileProgrammes />;
+      case 'baby':
+        return <MobileBabyTracker user={user} t={t} />;
+      case 'tools':
+        return <MobileLiveClasses user={user} />;
+      case 'more':
+        return <MobileSettings user={user} t={t} refetch={refetchMe} onNavigate={navigate} onSignOut={() => signOut(auth)} />;
+      case 'community':
+        return <MobileForum user={user} />;
+      case 'notifications':
+        return <MobileNotificationCentre />;
+      case 'weeklyReport':
+        return <MobileWeeklyReport user={user} lang={lang} onNavigate={navigate} />;
+      case 'dietPlanner':
+        return <MobileDietPlanner user={user} />;
+      case 'expertConsultation':
+        return <MobileExpertConsultation user={user} />;
+      case 'wellnessTracker':
+        return <MobileVitalsTracker user={user} />;
+      case 'supportHub':
+        return <MobileSupportHub user={user} />;
+      case 'storeBoutique':
+        return <MobileStoreBoutique user={user} />;
+      case 'upgradePlans':
+        return <MobileUpgradePlans user={user} />;
+      case 'staffConsole':
+        return <MobileStaffConsole user={user} />;
+      default:
+        return null;
+    }
+  }, [activeTab, refetchMe, t, user, lang]);
 
   const shareApp = () => Share.share({
     message: 'Join me on Divine Garbh Sanskar for a mindful pregnancy journey: https://www.thedivinegarbhsanskar.com',
@@ -118,7 +174,7 @@ function MobileAppContent() {
 
         <FirebaseSignInModal visible={signInOpen} onClose={() => setSignInOpen(false)} />
 
-        {!authLoaded || (isSignedIn && (meLoading || syncing)) ? (
+        {!authLoaded || !cacheLoaded || (isSignedIn && ((meLoading && !cachedUser) || syncing)) ? (
           <View style={appStyles.loading}><ActivityIndicator size="large" color={colors.maroon} /><Text style={appStyles.loadingText}>Preparing your Divine space…</Text></View>
         ) : !isSignedIn ? (
           <ScrollView contentContainerStyle={appStyles.welcome}>
