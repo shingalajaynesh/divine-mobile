@@ -78,6 +78,13 @@ export const ME_QUERY = gql`
       pregnancyDay
       language
       subscriptionStatus
+      shareVitalsWithPartner
+      shareReportsWithPartner
+      partner {
+        id
+        emailAddress
+        displayName
+      }
       center {
         name
       }
@@ -998,6 +1005,70 @@ export const PLACE_ORDER_MUTATION = gql`
     placeOrder(addressId: $addressId) {
       id
       status
+    }
+  }
+`;
+
+export const GET_PARTNER_DASHBOARD_QUERY = gql`
+  query GetPartnerDashboard {
+    getPartnerDashboard {
+      motherName
+      pregnancyDay
+      currentWeek
+      currentTrimester
+      babySize
+      babyMilestone
+      progressPercent
+      dailyQuizAttempted
+      partnerActivityCompleted
+      partnerActivityTitle
+      partnerActivityDescription
+    }
+    # Query sharing preferences via partner's linked mother
+    me {
+      partner {
+        shareVitalsWithPartner
+        shareReportsWithPartner
+      }
+    }
+    getMyVitals {
+      id
+      weight
+      systolicBp
+      diastolicBp
+      kickCount
+      bloodSugar
+      loggedAt
+      symptoms
+    }
+  }
+`;
+
+export const LINK_PARTNER_MUTATION = gql`
+  mutation LinkPartner($partnerEmail: String!) {
+    linkPartner(partnerEmail: $partnerEmail) {
+      id
+      partner {
+        id
+        emailAddress
+        displayName
+      }
+    }
+  }
+`;
+
+export const SEND_ENCOURAGEMENT_MUTATION = gql`
+  mutation SendEncouragement($message: String!) {
+    sendEncouragement(message: $message)
+  }
+`;
+
+export const UPDATE_PARTNER_SHARING_MUTATION = gql`
+  mutation UpdatePartnerSharing($shareVitals: Boolean!, $shareReports: Boolean!) {
+    updatePartnerSharing(shareVitals: $shareVitals, shareReports: $shareReports) {
+      id
+      shareVitalsWithPartner
+      shareReportsWithPartner
     }
   }
 `;

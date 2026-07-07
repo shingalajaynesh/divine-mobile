@@ -13,6 +13,7 @@ import FirebaseSignInModal from './src/components/FirebaseSignInModal.js';
 import { auth } from './src/config/firebase.js';
 import MobileOnboardingCalculator from './src/views/OnboardingCalculator.js';
 import MobileTodayDashboard from './src/views/TodayDashboard.js';
+import MobilePartnerDashboard from './src/views/PartnerDashboard.js';
 import MobileLibrary from './src/views/ContentLibrary.js';
 import MobileBabyTracker from './src/views/BabyGrowthTracker.js';
 import MobileForum from './src/views/CommunityForum.js';
@@ -32,13 +33,46 @@ import { appStyles } from './src/theme/appStyles.js';
 import { colors } from './src/theme/theme.js';
 
 const SUPPORT_URL = 'https://wa.me/919638484545?text=Hello%20Divine%20Garbh%20Sanskar%2C%20I%20need%20help.';
-const TABS = [
-  { id: 'home', icon: 'home-outline', activeIcon: 'home', label: 'Home' },
-  { id: 'learn', icon: 'book-outline', activeIcon: 'book', label: 'Learn' },
-  { id: 'activity', icon: 'sparkles-outline', activeIcon: 'sparkles', label: 'Activity' },
-  { id: 'tools', icon: 'briefcase-outline', activeIcon: 'briefcase', label: 'Tools' },
-  { id: 'more', icon: 'grid-outline', activeIcon: 'grid', label: 'More' },
-];
+
+const getTabsForRole = (roleType) => {
+  switch (roleType) {
+    case 'STAFF':
+      return [
+        { id: 'staffConsole', icon: 'people-outline', activeIcon: 'people', label: 'Staff' },
+        { id: 'notifications', icon: 'notifications-outline', activeIcon: 'notifications', label: 'Alerts' },
+        { id: 'supportHub', icon: 'chatbubble-ellipses-outline', activeIcon: 'chatbubble-ellipses', label: 'Support' },
+        { id: 'more', icon: 'grid-outline', activeIcon: 'grid', label: 'More' },
+      ];
+    case 'GUIDE':
+      return [
+        { id: 'expertConsultation', icon: 'medical-outline', activeIcon: 'medical', label: 'Consults' },
+        { id: 'tools', icon: 'videocam-outline', activeIcon: 'videocam', label: 'Classes' },
+        { id: 'notifications', icon: 'notifications-outline', activeIcon: 'notifications', label: 'Alerts' },
+        { id: 'more', icon: 'grid-outline', activeIcon: 'grid', label: 'More' },
+      ];
+    case 'ADMIN':
+      return [
+        { id: 'staffConsole', icon: 'people-outline', activeIcon: 'people', label: 'Staff' },
+        { id: 'notifications', icon: 'notifications-outline', activeIcon: 'notifications', label: 'Alerts' },
+        { id: 'more', icon: 'grid-outline', activeIcon: 'grid', label: 'More' },
+      ];
+    case 'PARTNER':
+      return [
+        { id: 'partnerDashboard', icon: 'heart-outline', activeIcon: 'heart', label: 'Partner' },
+        { id: 'notifications', icon: 'notifications-outline', activeIcon: 'notifications', label: 'Alerts' },
+        { id: 'more', icon: 'grid-outline', activeIcon: 'grid', label: 'More' },
+      ];
+    default:
+      return [
+        { id: 'home', icon: 'home-outline', activeIcon: 'home', label: 'Home' },
+        { id: 'learn', icon: 'book-outline', activeIcon: 'book', label: 'Learn' },
+        { id: 'activity', icon: 'sparkles-outline', activeIcon: 'sparkles', label: 'Activity' },
+        { id: 'tools', icon: 'briefcase-outline', activeIcon: 'briefcase', label: 'Tools' },
+        { id: 'more', icon: 'grid-outline', activeIcon: 'grid', label: 'More' },
+      ];
+  }
+};
+
 
 function MobileAppContent() {
   const [firebaseUser, setFirebaseUser] = useState(null);
@@ -103,11 +137,27 @@ function MobileAppContent() {
   const t = MOBILE_TRANSLATIONS[lang] || MOBILE_TRANSLATIONS.en;
   const displayName = user?.displayName || firebaseUser?.displayName || 'Divine Mother';
 
+  const roleType = user?.role?.roleType || 'MOTHER';
+  const roleTabs = useMemo(() => getTabsForRole(roleType), [roleType]);
+
+  useEffect(() => {
+    if (user) {
+      const currentRoleType = user.role?.roleType || 'MOTHER';
+      const allowedTabs = getTabsForRole(currentRoleType);
+      const isValid = allowedTabs.some((tab) => tab.id === activeTab);
+      if (!isValid && allowedTabs.length > 0) {
+        setActiveTab(allowedTabs[0].id);
+      }
+    }
+  }, [user]);
+
   const navigate = (tab) => setActiveTab(tab);
   const screen = useMemo(() => {
     switch (activeTab) {
       case 'home':
         return <MobileTodayDashboard user={user} t={t} onNavigate={navigate} />;
+      case 'partnerDashboard':
+        return <MobilePartnerDashboard user={user} t={t} onNavigate={navigate} />;
       case 'learn':
         return <MobileLibrary t={t} lang={lang} />;
       case 'activity':
@@ -196,7 +246,7 @@ function MobileAppContent() {
               </TouchableOpacity>
             )}
             <View style={appStyles.tabBar}>
-              {TABS.map((tab) => {
+              {roleTabs.map((tab) => {
                 const active = tab.id === activeTab;
                 return (
                   <TouchableOpacity key={tab.id} style={appStyles.tab} onPress={() => setActiveTab(tab.id)} accessibilityRole="button" accessibilityState={{ selected: active }}>

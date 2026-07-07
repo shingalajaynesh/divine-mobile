@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "681824189847",
+    "project_id": "divinegarbhsanskar-fc35d",
+    "storage_bucket": "divinegarbhsanskar-fc35d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:681824189847:android:d3170ec95885b4245318d2",
+        "android_client_info": {
+          "package_name": "com.divinegarbhsanskar.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "681824189847-mjkjplkmuh51glo9u3m4sdhfjd29vr7m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDXYVCC6Kr85o2hDeOyQNQvf5kNp36-wp8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "681824189847-mjkjplkmuh51glo9u3m4sdhfjd29vr7m.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ActivityIndicator, Alert, Image, Linking, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useQuery, useMutation } from '@apollo/client';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +18,10 @@ import {
   ACKNOWLEDGE_PARTNER_ACTIVITY_MUTATION,
   GET_SENSORY_ACTIVITY_QUERY,
   GET_MY_SENSORY_ACTIVITY_LOG_QUERY,
-  TOGGLE_SENSORY_ACTIVITY_MUTATION
+  TOGGLE_SENSORY_ACTIVITY_MUTATION,
+  LINK_PARTNER_MUTATION,
+  UPDATE_PARTNER_SHARING_MUTATION,
+  ME_QUERY
 } from '../graphql/operations.js';
 import { colors, shadows } from '../theme/theme.js';
 import VideoPlayerModal from '../components/VideoPlayerModal.js';
@@ -52,44 +55,44 @@ const getDaysForWeek = (wk) => {
 function getQuotientContent(selectedDay, content, userLanguage) {
   const isHi = userLanguage === 'hi';
   const isGu = userLanguage === 'gu';
-  
+
   const defaults = {
     PQ: {
       title: isHi ? "शारीरिक स्वास्थ्य (Physical Quotient)" : (isGu ? "શારીરિક સ્વાસ્થ્ય (Physical Quotient)" : "Physical Wellness (PQ)"),
-      description: isHi 
-        ? "आज 15 मिनट के लिए प्रसव-पूर्व तितली खिंचाव और गहरी श्वास क्रिया करें। प्रचुर मात्रा में पानी पिएं और मौसमी फल खाएं।" 
-        : (isGu 
-          ? "આજે ૧૫ મિનિટ માટે હળવા પતંગિયા આસન (બટરફ્લાય સ્ટ્રેચ) અને ઊંડા શ્વાસોચ્છવાસ (પ્રાણાયામ) કરો. નાળિયેર પાણી અને મોસમી ફળો લો." 
+      description: isHi
+        ? "आज 15 मिनट के लिए प्रसव-पूर्व तितली खिंचाव और गहरी श्वास क्रिया करें। प्रचुर मात्रा में पानी पिएं और मौसमी फल खाएं।"
+        : (isGu
+          ? "આજે ૧૫ મિનિટ માટે હળવા પતંગિયા આસન (બટરફ્લાય સ્ટ્રેચ) અને ઊંડા શ્વાસોચ્છવાસ (પ્રાણાયામ) કરો. નાળિયેર પાણી અને મોસમી ફળો લો."
           : "Practice 15 minutes of gentle butterfly stretches and deep pranayama breathing today. Hydrate with coconut water and seasonal fruits."),
       icon: "🧘‍♀️",
       category: "yoga"
     },
     IQ: {
       title: isHi ? "बौद्धिक स्वास्थ्य (Intelligence Quotient)" : (isGu ? "બૌદ્ધિક સ્વાસ્થ્ય (Intelligence Quotient)" : "Intelligence Development (IQ)"),
-      description: isHi 
-        ? "एक पहेली या वर्ग पहेली खेलें। गर्भ में पल रहे शिशु के संज्ञानात्मक विकास के लिए आज 10 मिनट कुछ नया पढ़ने में व्यतीत करें।" 
-        : (isGu 
-          ? "આજે એક કોયડો અથવા તાર્કિક રમત રમો. ગર્ભસ્થ શિશુના જ્ઞાનાત્મક વિકાસ માટે આજે ૧૦ મિનિટ કંઈક નવું વાંચવા માટે વિતાવો." 
+      description: isHi
+        ? "एक पहेली या वर्ग पहेली खेलें। गर्भ में पल रहे शिशु के संज्ञानात्मक विकास के लिए आज 10 मिनट कुछ नया पढ़ने में व्यतीत करें।"
+        : (isGu
+          ? "આજે એક કોયડો અથવા તાર્કિક રમત રમો. ગર્ભસ્થ શિશુના જ્ઞાનાત્મક વિકાસ માટે આજે ૧૦ મિનિટ કંઈક નવું વાંચવા માટે વિતાવો."
           : "Solve a puzzle or play a logic game today. Nurture your baby's cognitive development by reading an educational story for 10 minutes."),
       icon: "🧠",
       category: "story"
     },
     EQ: {
       title: isHi ? "भावनात्मक स्वास्थ्य (Emotional Quotient)" : (isGu ? "ભાવનાત્મક સ્વાસ્થ્ય (Emotional Quotient)" : "Emotional Bonding (EQ)"),
-      description: isHi 
-        ? "गर्भ संवाद: अपने हाथों को अपने पेट पर धीरे से रखें और मुस्कुराते हुए शिशु से बातें करें। कहें कि हम सब आपका स्वागत करने के लिए उत्सुक हैं।" 
-        : (isGu 
-          ? "ગર્ભ સંવાદ: તમારા હાથ તમારા પેટ પર હળવેથી રાખો, હસો અને ગર્ભસ્થ શિશુ સાથે વાત કરો: 'અમે તમને ખૂબ પ્રેમ કરીએ છીએ, તમે અમારા માટે એક આશીર્વાદ છો.'" 
+      description: isHi
+        ? "गर्भ संवाद: अपने हाथों को अपने पेट पर धीरे से रखें और मुस्कुराते हुए शिशु से बातें करें। कहें कि हम सब आपका स्वागत करने के लिए उत्सुक हैं।"
+        : (isGu
+          ? "ગર્ભ સંવાદ: તમારા હાથ તમારા પેટ પર હળવેથી રાખો, હસો અને ગર્ભસ્થ શિશુ સાથે વાત કરો: 'અમે તમને ખૂબ પ્રેમ કરીએ છીએ, તમે અમારા માટે એક આશીર્વાદ છો.'"
           : "Garbh Samvad: Place your hands on your belly, smile, and speak to your unborn child: 'We love you, you are a blessing to us.'"),
       icon: "❤️",
       category: "dialogue"
     },
     SQ: {
       title: isHi ? "आध्यात्मिक स्वास्थ्य (Spiritual Quotient)" : (isGu ? "આધ્યાત્મિક સ્વાસ્થ્ય (Spiritual Quotient)" : "Spiritual Aura (SQ)"),
-      description: isHi 
-        ? "आज शांति से गायत्री मंत्र का 11 बार उच्चारण करें। सकारात्मक दिव्य ऊर्जा प्रवाह पर ध्यान केंद्रित करते हुए 10 मिनट ध्यान लगाएं।" 
-        : (isGu 
-          ? "આજે ૧૧ વાર શાંતિથી ગાયત્રી મંત્રનો જાપ કરો. ગર્ભસ્થ શિશુની આસપાસ દૈવી પ્રકાશ અને હકારાત્મક ઊર્જાની કલ્પના કરીને ૧૦ મિનિટ શાંત ધ્યાન કરો." 
+      description: isHi
+        ? "आज शांति से गायत्री मंत्र का 11 बार उच्चारण करें। सकारात्मक दिव्य ऊर्जा प्रवाह पर ध्यान केंद्रित करते हुए 10 मिनट ध्यान लगाएं।"
+        : (isGu
+          ? "આજે ૧૧ વાર શાંતિથી ગાયત્રી મંત્રનો જાપ કરો. ગર્ભસ્થ શિશુની આસપાસ દૈવી પ્રકાશ અને હકારાત્મક ઊર્જાની કલ્પના કરીને ૧૦ મિનિટ શાંત ધ્યાન કરો."
           : "Chant the Gayatri Mantra 11 times. Spend 10 minutes in silent meditation, visualizing divine light and positive energy surrounding your baby."),
       icon: "🕉️",
       category: "mantra"
@@ -98,7 +101,7 @@ function getQuotientContent(selectedDay, content, userLanguage) {
 
   if (content) {
     const categoryLower = (content.category || '').toLowerCase();
-    
+
     if (categoryLower === 'yoga' || categoryLower === 'recipe') {
       defaults.PQ.title = content.title || defaults.PQ.title;
       defaults.PQ.description = content.body || defaults.PQ.description;
@@ -129,6 +132,35 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
   const selectedTrimester = Math.max(1, Math.min(3, Math.floor((selectedDay - 1) / 84) + 1));
   const selectedMonth = Math.max(1, Math.min(10, Math.floor((selectedDay - 1) / 28) + 1));
   const selectedWeek = Math.max(1, Math.min(40, Math.floor((selectedDay - 1) / 7) + 1));
+
+  const trimesterStory = useMemo(() => {
+    const tri = selectedTrimester;
+    if (tri === 1) {
+      return {
+        title: isHi ? "प्रथम तिमाही: प्राण संचार" : "Trimester 1: Prana Sanchar",
+        desc: isHi 
+          ? "जीवन शक्ति का आगमन। शांतिपूर्ण मंत्रोच्चार और विश्राम पर ध्यान केंद्रित करें।"
+          : "Inflow of Life Force. Establish peace, bond with quiet mantras, and practice deep breathing.",
+        color: "#ca8a04",
+      };
+    } else if (tri === 2) {
+      return {
+        title: isHi ? "द्वितीय तिमाही: इंद्रिय संचार" : "Trimester 2: Indriya Sanchar",
+        desc: isHi
+          ? "इंद्रियों का विकास। संगीत, सकारात्मक पठन और मधुर गर्भ संवाद पर ध्यान दें।"
+          : "Development of Senses. Nourish with sensory sounds, positive reading, and soft music.",
+        color: "#b45309",
+      };
+    } else {
+      return {
+        title: isHi ? "तृतीय तिमाही: चेतना संचार" : "Trimester 3: Chetana Sanchar",
+        desc: isHi
+          ? "चेतना का जागरण। प्रार्थना, उच्च नैतिक संकल्प और सजग प्रसव-पूर्व योग अभ्यास करें।"
+          : "Awakening of Consciousness. Focus on prayer, moral values, and light prenatal yoga.",
+        color: "#be123c",
+      };
+    }
+  }, [selectedTrimester, isHi]);
 
   const startDay = (selectedWeek - 1) * 7 + 1;
   const endDay = selectedWeek * 7;
@@ -200,6 +232,22 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
     onError: (err) => {
       Alert.alert('Error', err.message);
     }
+  });
+
+  const [partnerEmail, setPartnerEmail] = useState('');
+  const [linkPartner, { loading: linkingPartner }] = useMutation(LINK_PARTNER_MUTATION, {
+    refetchQueries: [{ query: ME_QUERY }],
+    onCompleted: () => {
+      Alert.alert('Success', isHi ? "साथी सफलतापूर्वक जुड़ गया!" : "Partner linked successfully!");
+      setPartnerEmail('');
+    },
+    onError: (err) => Alert.alert('Error', err.message)
+  });
+
+  const [updatePartnerSharing] = useMutation(UPDATE_PARTNER_SHARING_MUTATION, {
+    refetchQueries: [{ query: ME_QUERY }],
+    onCompleted: () => Alert.alert('Success', isHi ? "साझाकरण अनुमतियां अपडेट की गईं!" : "Sharing preferences updated!"),
+    onError: (err) => Alert.alert('Error', err.message)
   });
 
   const sensoryActivity = sensoryData?.getSensoryActivity;
@@ -314,15 +362,92 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
         <TouchableOpacity style={s.supportButton} onPress={() => Linking.openURL(SUPPORT)}><Text style={s.supportButtonText}>Chat</Text></TouchableOpacity>
       </View>
 
+      {/* Quick Actions Row */}
+      <View style={s.quickActionsContainer}>
+        <Text style={s.quickActionsTitle}>{isHi ? "त्वरित उपकरण" : "Quick Tools"}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.quickActionsRow}>
+          {[
+            { key: 'dietPlanner', icon: '🍎', label: isHi ? 'आहार योजना' : 'Diet' },
+            { key: 'wellnessTracker', icon: '💓', label: isHi ? 'वाइटल्स' : 'Vitals' },
+            { key: 'weeklyReport', icon: '📊', label: isHi ? 'रिपोर्ट' : 'Reports' },
+            { key: 'expertConsultation', icon: '👩‍⚕️', label: isHi ? 'सलाह लें' : 'Consult' }
+          ].map((act) => (
+            <TouchableOpacity
+              key={act.key}
+              style={s.quickActionChip}
+              onPress={() => onNavigate(act.key)}
+            >
+              <Text style={s.quickActionIcon}>{act.icon}</Text>
+              <Text style={s.quickActionLabel}>{act.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
       {/* Journey Banner */}
-      <LinearGradient colors={['#FFF3D2', '#F9E6DF']} style={s.journeyCard}>
-        <View style={s.journeyCopy}>
-          <Text style={s.eyebrow}>YOUR PREGNANCY JOURNEY</Text>
-          <Text style={s.journeyTitle}>Week {selectedWeek}</Text>
-          <Text style={s.journeyText}>Your baby is approximately {baby?.size || 'growing beautifully'}.</Text>
-          <View style={s.metaRow}><Text style={s.metaText}>Trimester {selectedTrimester}</Text><Text style={s.metaText}>Day {selectedDay} / 280</Text></View>
+      <LinearGradient 
+        colors={
+          selectedTrimester === 1 ? ['#FFFBEB', '#FEF3C7'] :
+          selectedTrimester === 2 ? ['#FFF7ED', '#FFEDD5'] :
+          ['#FFF1F2', '#FFE4E6']
+        } 
+        style={[s.journeyCard, { borderLeftWidth: 6, borderLeftColor: trimesterStory.color }]}
+      >
+        <View style={{ width: '100%', gap: 12 }}>
+          {/* Header Row */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={[s.eyebrow, { color: trimesterStory.color }]}>
+              {isHi ? `तिमाही ${selectedTrimester} · सप्ताह ${selectedWeek}` : `TRIMESTER ${selectedTrimester} · WEEK ${selectedWeek}`}
+            </Text>
+            <View style={{ backgroundColor: 'rgba(255, 255, 255, 0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
+              <Text style={{ fontSize: 9, fontWeight: '800', color: colors.maroon }}>🌱 {isHi ? `दिन ${selectedDay} / 280` : `Day ${selectedDay} / 280`}</Text>
+            </View>
+          </View>
+
+          {/* Baby & Greeting Row */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{
+              width: 72,
+              height: 72,
+              borderRadius: 36,
+              backgroundColor: 'rgba(255, 255, 255, 0.8)',
+              borderWidth: 3,
+              borderColor: 'rgba(255, 255, 255, 0.5)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden'
+            }}>
+              <Image source={require('../../assets/smiling_baby.png')} style={{ width: 66, height: 66, borderRadius: 33 }} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: '900', color: colors.maroonDark }}>
+                {isHi ? "नमस्ते, प्रिय माँ!" : "Hello, Beautiful Mother!"}
+              </Text>
+              <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2, lineHeight: 15 }} numberOfLines={3}>
+                {isHi ? `आपकी गर्भावस्था का सप्ताह ${selectedWeek}। शिशु का आकार: ${baby?.size || 'एक नन्हा बीज'} है और वह स्वस्थ बढ़ रहा है!` : `Week ${selectedWeek} of pregnancy. Baby size: ${baby?.size || 'a tiny seed'}. Growing healthy!`}
+              </Text>
+            </View>
+          </View>
+
+          {/* Garbh Sanskar Motif Box */}
+          <View style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.45)',
+            padding: 12,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: 'rgba(255, 255, 255, 0.5)'
+          }}>
+            <Text style={{ color: trimesterStory.color, fontWeight: '800', fontSize: 9, textTransform: 'uppercase', marginBottom: 2 }}>
+              ✨ {isHi ? "गर्भ संस्कार विषय" : "GARBH SANSKAR MOTIF"}
+            </Text>
+            <Text style={{ fontWeight: '800', color: colors.maroonDark, fontSize: 12, marginBottom: 2 }}>
+              {trimesterStory.title}
+            </Text>
+            <Text style={{ color: colors.muted, fontSize: 10, lineHeight: 14 }}>
+              {trimesterStory.desc}
+            </Text>
+          </View>
         </View>
-        <View style={s.journeyOrb}><Ionicons name="heart" size={42} color={colors.maroon} /></View>
       </LinearGradient>
 
       {/* 280-day timeline Picker */}
@@ -434,7 +559,7 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
       ) : (
         <>
           <SectionTitle title={isHi ? "दैनिक आयामी गतिविधियां" : "Daily Quotients Activity"} />
-          
+
           {/* Quick Quotients Grid Selector */}
           <View style={s.quotientGrid}>
             {Object.entries(quotients).map(([key, q]) => {
@@ -475,7 +600,7 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
                 </View>
               )}
             </View>
-            
+
             <Text style={s.detailsTitle}>{quotients[activeQuotient].title}</Text>
             <Text style={s.detailsDescription}>{quotients[activeQuotient].description}</Text>
 
@@ -485,11 +610,11 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
                   ⚠️ {isHi ? "प्रसव-पूर्व सुरक्षा सावधानियां" : "Prenatal Safety Precautions"} (Trimester {selectedDay <= 90 ? '1' : selectedDay <= 180 ? '2' : '3'})
                 </Text>
                 <Text style={s.safetyText}>
-                  {selectedDay <= 90 
+                  {selectedDay <= 90
                     ? (isHi ? "त्रैमासिक 1 सावधानियां: पेट पर दबाव डालने वाले आसनों से बचें, झटकेदार आंदोलनों से बचें, और यदि ऐंठन या रक्तस्राव हो तो अभ्यास तुरंत रोक दें।" : "Trimester 1 Precautions: Avoid abdominal pressure, sudden twists or high-impact jumps. Stop immediately if experiencing cramping or spotting.")
                     : selectedDay <= 180
-                    ? (isHi ? "त्रैमासिक 2 सावधानियां: पीठ के बल अधिक देर तक लेटने से बचें, संतुलन के लिए दीवार या सहारा लें, और अत्यधिक खिंचाव से बचें।" : "Trimester 2 Precautions: Avoid lying flat on your back for long. Use wall or chair support for balance. Do not over-stretch.")
-                    : (isHi ? "त्रैमासिक 3 सावधानियां: पीठ के बल लेटने वाले आसन न करें, सांस रोकने से बचें, और हमेशा सहारे के साथ अभ्यास करें।" : "Trimester 3 Precautions: Absolutely avoid supine positions (on your back) and breath retention. Always use support (blocks/cushions).")
+                      ? (isHi ? "त्रैमासिक 2 सावधानियां: पीठ के बल अधिक देर तक लेटने से बचें, संतुलन के लिए दीवार या सहारा लें, और अत्यधिक खिंचाव से बचें।" : "Trimester 2 Precautions: Avoid lying flat on your back for long. Use wall or chair support for balance. Do not over-stretch.")
+                      : (isHi ? "त्रैमासिक 3 सावधानियां: पीठ के बल लेटने वाले आसन न करें, सांस रोकने से बचें, और हमेशा सहारे के साथ अभ्यास करें।" : "Trimester 3 Precautions: Absolutely avoid supine positions (on your back) and breath retention. Always use support (blocks/cushions).")
                   }
                 </Text>
                 <Text style={s.safetyDisclaimer}>
@@ -497,13 +622,13 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
                 </Text>
               </View>
             )}
-            
+
             <View style={s.divider} />
 
             {/* Quotient Logs, evidence & reflection notes */}
             <View style={s.logsContainer}>
               <Text style={s.logsLabel}>📝 {isHi ? "गतिविधि विवरण और डायरी" : "Activity Logging & Reflection"}</Text>
-              
+
               <Text style={s.inputLabel}>{isHi ? "समय (मिनट में)" : "Duration spent (mins)"}</Text>
               <TextInput
                 style={s.input}
@@ -534,7 +659,7 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
             </View>
 
             <View style={s.divider} />
-            
+
             <View style={s.detailsActions}>
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                 <TouchableOpacity
@@ -606,18 +731,18 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
               {isHi ? "दैनिक मस्तिष्क व्यायाम पहेली" : "Daily Cognitive Quiz & Puzzle"}
             </Text>
           </View>
-          
+
           <Text style={s.quizQuestionText}>{dailyQuiz.questionText}</Text>
-          
+
           <View style={s.quizOptionsGrid}>
             {dailyQuiz.options.map((option, index) => {
               const isAttempted = !!quizAttempt;
               const isSelected = isAttempted && quizAttempt.selectedOptionIndex === index;
               const isCorrectIndex = index === dailyQuiz.correctOptionIndex;
-              
+
               let optBtnStyle = [s.quizOptionButton];
               let optTxtStyle = [s.quizOptionText];
-              
+
               if (isAttempted) {
                 if (isSelected && quizAttempt.isCorrect) {
                   optBtnStyle.push(s.quizOptionCorrect);
@@ -648,9 +773,9 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
               };
 
               return (
-                <TouchableOpacity 
-                  key={index} 
-                  style={optBtnStyle} 
+                <TouchableOpacity
+                  key={index}
+                  style={optBtnStyle}
                   onPress={handleSelect}
                   disabled={isAttempted}
                 >
@@ -682,21 +807,21 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
               {isHi ? "पिता और परिवार दैनिक अनुष्ठान" : "Partner & Family Daily Ritual"}
             </Text>
           </View>
-          
+
           <Text style={s.partnerTitleText}>{partnerActivity.title}</Text>
           <Text style={s.partnerDescriptionText}>{partnerActivity.description}</Text>
 
           <View style={s.partnerActionsRow}>
             <View style={[s.partnerStatusBadge, partnerLog?.partnerAcknowledged ? s.partnerStatusDone : s.partnerStatusPending]}>
               <Text style={[s.partnerStatusText, partnerLog?.partnerAcknowledged ? s.partnerStatusTextDone : s.partnerStatusTextPending]}>
-                {partnerLog?.partnerAcknowledged 
+                {partnerLog?.partnerAcknowledged
                   ? (isHi ? "✓ पूर्ण" : "✓ Done")
                   : (isHi ? "⚠️ लंबित" : "⚠️ Pending")
                 }
               </Text>
             </View>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[s.partnerAckButton, partnerLog?.partnerAcknowledged && s.partnerAckButtonActive]}
               onPress={async () => {
                 try {
@@ -709,13 +834,119 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
               }}
             >
               <Text style={s.partnerAckButtonText}>
-                {partnerLog?.partnerAcknowledged 
+                {partnerLog?.partnerAcknowledged
                   ? (isHi ? "अपूर्ण करें" : "Uncheck")
                   : (isHi ? "पूर्ण चिह्नित करें" : "Mark Done")
                 }
               </Text>
             </TouchableOpacity>
           </View>
+        </View>
+      )}
+
+      {/* Partner Link & Consent Card */}
+      {!isLocked && (
+        <View style={s.partnerSettingsCard}>
+          <View style={s.partnerHeader}>
+            <Ionicons name="lock-closed-outline" size={18} color={colors.maroon} />
+            <Text style={s.partnerHeaderTitle}>
+              {isHi ? "साथी जुड़ाव और साझाकरण सेटिंग्स" : "Partner Link & Sharing Consent"}
+            </Text>
+          </View>
+
+          {user?.partner ? (
+            <View>
+              <View style={s.partnerActionsRow}>
+                <View>
+                  <Text style={s.inputLabel}>{isHi ? "संबद्ध साथी ईमेल" : "LINKED PARTNER EMAIL"}</Text>
+                  <Text style={s.partnerEmailVal}>{user.partner.emailAddress}</Text>
+                </View>
+                <View style={s.partnerStatusBadge}>
+                  <Text style={s.partnerStatusTextDone}>
+                    {isHi ? "✓ संबद्ध" : "✓ Linked"}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={s.divider} />
+
+              <Text style={s.partnerSharingTitle}>
+                {isHi ? "साझाकरण अनुमतियाँ" : "Sharing Permissions"}
+              </Text>
+
+              <TouchableOpacity 
+                style={s.checkboxRow}
+                onPress={() => {
+                  updatePartnerSharing({
+                    variables: {
+                      shareVitals: !user.shareVitalsWithPartner,
+                      shareReports: user.shareReportsWithPartner
+                    }
+                  });
+                }}
+              >
+                <Ionicons 
+                  name={user.shareVitalsWithPartner ? "checkbox" : "square-outline"} 
+                  size={20} 
+                  color={user.shareVitalsWithPartner ? colors.success : colors.muted} 
+                />
+                <Text style={s.checkboxLabel}>
+                  {isHi ? "स्वास्थ्य महत्वपूर्ण (Vitals) विवरण साझा करें" : "Share health vitals logs with partner"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={s.checkboxRow}
+                onPress={() => {
+                  updatePartnerSharing({
+                    variables: {
+                      shareVitals: user.shareVitalsWithPartner,
+                      shareReports: !user.shareReportsWithPartner
+                    }
+                  });
+                }}
+              >
+                <Ionicons 
+                  name={user.shareReportsWithPartner ? "checkbox" : "square-outline"} 
+                  size={20} 
+                  color={user.shareReportsWithPartner ? colors.success : colors.muted} 
+                />
+                <Text style={s.checkboxLabel}>
+                  {isHi ? "साप्ताहिक प्रगति रिपोर्ट साझा करें" : "Share weekly journey reports with partner"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View>
+              <Text style={s.partnerDescriptionText}>
+                {isHi 
+                  ? "अपने जीवनसाथी के साथ अपनी मातृत्व यात्रा साझा करें। वे दैनिक कार्यों को देख सकते हैं, प्रोत्साहन भेज सकते हैं और प्रगति देख सकते हैं।" 
+                  : "Invite and link your partner to join your Garbh Sanskar journey. They will receive their own dashboard, assigned tasks, and can send you encouraging messages."}
+              </Text>
+              <TextInput 
+                placeholder={isHi ? "साथी का ईमेल दर्ज करें..." : "Enter partner's email..."}
+                value={partnerEmail}
+                onChangeText={setPartnerEmail}
+                style={s.input}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <TouchableOpacity 
+                style={[s.partnerAckButton, { marginTop: 12, alignItems: 'center' }]}
+                onPress={() => {
+                  if (!partnerEmail.trim()) return;
+                  linkPartner({ variables: { partnerEmail: partnerEmail.trim() } });
+                }}
+                disabled={linkingPartner}
+              >
+                {linkingPartner ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={s.partnerAckButtonText}>{isHi ? "साथी लिंक करें" : "Link Partner"}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
 
@@ -728,7 +959,7 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
               {isHi ? "पंचेंद्रिय विकास दैनिक अनुष्ठान" : "Five-Sense Daily Sensory Ritual"}
             </Text>
           </View>
-          
+
           <View style={{ flexDirection: 'row', marginBottom: 8 }}>
             <View style={s.sensoryTypeBadge}>
               <Text style={s.sensoryTypeText}>{sensoryActivity.senseType}</Text>
@@ -741,14 +972,14 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
           <View style={s.sensoryActionsRow}>
             <View style={[s.sensoryStatusBadge, sensoryLog?.completed ? s.sensoryStatusDone : s.sensoryStatusPending]}>
               <Text style={[s.sensoryStatusText, sensoryLog?.completed ? s.sensoryStatusTextDone : s.sensoryStatusTextPending]}>
-                {sensoryLog?.completed 
+                {sensoryLog?.completed
                   ? (isHi ? "✓ पूर्ण" : "✓ Completed")
                   : (isHi ? "⚠️ लंबित" : "⚠️ Pending")
                 }
               </Text>
             </View>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[s.sensoryAckButton, sensoryLog?.completed && s.sensoryAckButtonActive]}
               onPress={async () => {
                 try {
@@ -761,7 +992,7 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
               }}
             >
               <Text style={s.sensoryAckButtonText}>
-                {sensoryLog?.completed 
+                {sensoryLog?.completed
                   ? (isHi ? "अपूर्ण करें" : "Uncheck")
                   : (isHi ? "पूर्ण चिह्नित करें" : "Mark Completed")
                 }
@@ -844,7 +1075,7 @@ const s = StyleSheet.create({
   supportIllustration: { width: 52, height: 52, borderRadius: 18, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center' },
   supportCopy: { flex: 1 }, supportTitle: { color: colors.maroonDark, fontSize: 14, fontWeight: '900' }, supportText: { color: colors.muted, fontSize: 10, marginTop: 3 },
   supportButton: { paddingHorizontal: 15, paddingVertical: 10, backgroundColor: colors.success, borderRadius: 12 }, supportButtonText: { color: colors.paper, fontSize: 11, fontWeight: '900' },
-  journeyCard: { minHeight: 190, borderRadius: 24, padding: 20, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' }, journeyCopy: { flex: 1, zIndex: 2 },
+  journeyCard: { borderRadius: 24, padding: 16, flexDirection: 'column', overflow: 'hidden' }, journeyCopy: { flex: 1, zIndex: 2 },
   eyebrow: { color: colors.saffron, fontSize: 9, fontWeight: '900', letterSpacing: 1 }, journeyTitle: { color: colors.maroonDark, fontSize: 29, fontWeight: '900', marginTop: 7 }, journeyText: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 5, maxWidth: 210 },
   metaRow: { flexDirection: 'row', gap: 7, marginTop: 14 }, metaText: { color: colors.maroon, backgroundColor: 'rgba(255,255,255,.7)', paddingHorizontal: 9, paddingVertical: 6, borderRadius: 10, fontSize: 9, fontWeight: '800' },
   journeyOrb: { width: 96, height: 96, borderRadius: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,.72)', borderWidth: 8, borderColor: 'rgba(255,255,255,.42)' },
@@ -976,5 +1207,23 @@ const s = StyleSheet.create({
   safetyBanner: { marginVertical: 12, padding: 12, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 10 },
   safetyTitle: { fontWeight: 'bold', color: '#B45309', fontSize: 11, marginBottom: 4 },
   safetyText: { fontSize: 10, color: '#78350F', lineHeight: 14, marginBottom: 6 },
-  safetyDisclaimer: { fontSize: 9, color: '#9A3412', fontWeight: 'bold' }
+  safetyDisclaimer: { fontSize: 9, color: '#9A3412', fontWeight: 'bold' },
+
+  // Quick Actions Styles
+  quickActionsContainer: { marginVertical: 12 },
+  quickActionsTitle: { color: colors.maroonDark, fontSize: 13, fontWeight: '900', textTransform: 'uppercase', marginBottom: 8, paddingHorizontal: 4 },
+  quickActionsRow: { gap: 10, paddingHorizontal: 4 },
+  quickActionChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, gap: 6, ...shadows.card },
+  quickActionIcon: { fontSize: 16 },
+  quickActionLabel: { color: colors.maroonDark, fontSize: 12, fontWeight: '800' },
+
+  // Additional Journey Card styles
+  journeyBabyText: { color: colors.muted, fontSize: 11, fontStyle: 'italic', marginTop: 4, marginBottom: 8 },
+
+  // Partner settings card styles
+  partnerSettingsCard: { padding: 18, borderRadius: 24, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, ...shadows.card, marginTop: 16 },
+  partnerEmailVal: { fontSize: 15, fontWeight: '800', color: colors.ink, marginTop: 2 },
+  partnerSharingTitle: { color: colors.maroon, fontSize: 12, fontWeight: '800', textTransform: 'uppercase', marginBottom: 8 },
+  checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  checkboxLabel: { fontSize: 12, color: colors.ink, fontWeight: '600', flex: 1 }
 });

@@ -58,18 +58,6 @@ export default function MobileSettings({ user, refetch, onNavigate, onSignOut })
       </View>
 
       <View style={s.listCard}>
-        <Text style={s.listTitle}>Accessibility Options</Text>
-        <View style={s.languageRow}>
-          <TouchableOpacity style={s.language} onPress={() => Alert.alert('Contrast Toggle', 'High contrast filters applied successfully!')}>
-            <Text style={s.languageText}>Toggle High Contrast</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.language} onPress={() => Alert.alert('Font Scale', 'Text size enlarged by 1.2x!')}>
-            <Text style={s.languageText}>Enlarge Text Scale</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={s.listCard}>
         <SettingsRow icon="nutrition-outline" label={user.language === 'hi' ? 'भोजन और पोषण योजना' : 'Diet & Nutrition Planner'} onPress={() => onNavigate('dietPlanner')} />
         <SettingsRow icon="heart-outline" label={user.language === 'hi' ? 'मातृत्व स्वास्थ्य और कल्याण' : 'Pregnancy Wellness Kit'} onPress={() => onNavigate('wellnessTracker')} />
         <SettingsRow icon="people-outline" label={user.language === 'hi' ? 'विशेषज्ञ सलाह' : 'Expert Consulting'} onPress={() => onNavigate('expertConsultation')} />
