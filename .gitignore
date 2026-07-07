@@ -2,6 +2,20 @@ node_modules/
 .expo/
 web-build/
 dist/
+dist-check/
 .env
 .env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .DS_Store
+.idea/
+.vscode/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Mobile credentials and secrets
+google-services.json
+GoogleService-Info.plist

@@ -16,6 +16,16 @@ export const MY_PROGRAM_ENROLLMENTS_QUERY = gql`
 export const ENROLL_IN_PROGRAM_MUTATION = gql`
   mutation EnrollInProgram($programId: ID!) { enrollInProgram(programId: $programId) { id status program { id name } } }
 `;
+
+export const UPDATE_ACTIVITY_PROGRESS_MUTATION = gql`
+  mutation UpdateActivityProgress($activityId: ID!, $input: ActivityProgressInput!) {
+    updateActivityProgress(activityId: $activityId, input: $input) {
+      id
+      activityId
+      status
+    }
+  }
+`;
 export const CONTENT_FEED_QUERY = gql`
   query ContentFeed($language: String, $contentType: String) { contentFeed(language: $language, contentType: $contentType) { id slug contentType visibility category { slug name } coverAsset { url kind altText } translation { language title summary body } } }
 `;
