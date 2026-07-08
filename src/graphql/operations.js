@@ -62,6 +62,49 @@ export const CLEAR_RECENT_CONTENT_SEARCHES_MUTATION = gql`
   mutation ClearRecentContentSearches { clearRecentContentSearches }
 `;
 
+export const GET_RECOMMENDED_CONTENT_FEED_QUERY = gql`
+  query GetRecommendedContentFeed($language: String, $limit: Int) {
+    recommendedContentFeed(language: $language, limit: $limit) {
+      id slug contentType visibility trimester1Safe trimester2Safe trimester3Safe completed
+      category { slug name }
+      coverAsset { url kind altText }
+      translation { language title summary body }
+    }
+  }
+`;
+
+export const GET_MY_LEARNING_PATHS_QUERY = gql`
+  query GetMyLearningPaths($language: String) {
+    myLearningPaths(language: $language) {
+      id title description icon progressPercent
+      items {
+        id slug contentType visibility trimester1Safe trimester2Safe trimester3Safe completed
+        category { slug name }
+        coverAsset { url kind altText }
+        translation { language title summary body }
+      }
+    }
+  }
+`;
+
+export const GET_CONTENT_PERFORMANCE_ANALYTICS_QUERY = gql`
+  query GetContentPerformanceAnalytics {
+    getContentPerformanceAnalytics {
+      id
+      slug
+      contentType
+      title
+      totalViews
+      uniqueViewers
+      completionCount
+      completionRate
+      saveCount
+      avgProgress
+      dropOffRate
+    }
+  }
+`;
+
 export const NOTIFICATION_CENTRE_QUERY = gql`
   query NotificationCentre {
     myNotifications { unreadCount items { id kind title body actionUrl status readAt createdAt } }
@@ -687,6 +730,9 @@ export const GET_LIVE_CLASSES_DETAILED_QUERY = gql`
       attended
       feedbackScore
       feedbackNotes
+      centerId
+      seriesTitle
+      batchName
     }
   }
 `;

@@ -87,11 +87,23 @@ export default function MobileLiveClasses({ user }) {
                     <Text style={{ fontSize: 10, fontWeight: '800', color: isPast ? colors.muted : colors.saffron }}>
                       📅 {new Date(item.startTime).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </Text>
-                    {item.booked && (
-                      <View style={{ backgroundColor: '#E6FFFA', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                        <Text style={{ color: '#234e52', fontSize: 8, fontWeight: '900' }}>{isHi ? "बुक किया गया" : "BOOKED"}</Text>
-                      </View>
-                    )}
+                    <View style={{ flexDirection: 'row', gap: 4 }}>
+                      {item.seriesTitle && (
+                        <View style={{ backgroundColor: '#FAF5FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                          <Text style={{ color: '#553C9A', fontSize: 8, fontWeight: '900' }}>{item.seriesTitle.toUpperCase()}</Text>
+                        </View>
+                      )}
+                      {item.batchName && (
+                        <View style={{ backgroundColor: '#EBF8FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                          <Text style={{ color: '#2B6CB0', fontSize: 8, fontWeight: '900' }}>{item.batchName.toUpperCase()}</Text>
+                        </View>
+                      )}
+                      {item.booked && (
+                        <View style={{ backgroundColor: '#E6FFFA', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                          <Text style={{ color: '#234e52', fontSize: 8, fontWeight: '900' }}>{isHi ? "बुक किया गया" : "BOOKED"}</Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
 
                   <Text style={[styles.liveClassTitle, { fontSize: 14, fontWeight: '800', color: colors.maroonDark, marginTop: 6 }]}>{title}</Text>

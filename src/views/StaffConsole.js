@@ -9,7 +9,8 @@ import {
   ActivityIndicator, 
   Alert, 
   FlatList,
-  Modal
+  Modal,
+  Share
 } from 'react-native';
 import { useQuery, useMutation, gql } from '@apollo/client';
 import { Ionicons } from '@expo/vector-icons';
@@ -102,9 +103,16 @@ const GET_LIVE_CLASSES_QUERY = gql`
     getLiveClassesDetailed {
       id
       title
+      titleEn
+      titleHi
       instructor
       startTime
       durationMins
+      videoCallUrl
+      replayUrl
+      centerId
+      seriesTitle
+      batchName
     }
   }
 `;
@@ -135,9 +143,100 @@ const RECORD_ATTENDANCE_MUTATION = gql`
   }
 `;
 
+const CREATE_LIVE_CLASS_MUTATION = gql`
+  mutation CreateLiveClass($titleEn: String!, $titleHi: String!, $instructor: String!, $startTime: String!, $durationMins: Int!, $videoCallUrl: String!, $seriesTitle: String, $batchName: String, $centerId: ID) {
+    createLiveClass(titleEn: $titleEn, titleHi: $titleHi, instructor: $instructor, startTime: $startTime, durationMins: $durationMins, videoCallUrl: $videoCallUrl, seriesTitle: $seriesTitle, batchName: $batchName, centerId: $centerId) {
+      id
+    }
+  }
+`;
+
+const UPDATE_LIVE_CLASS_MUTATION = gql`
+  mutation UpdateLiveClass($id: ID!, $titleEn: String, $titleHi: String, $instructor: String, $startTime: String, $durationMins: Int, $videoCallUrl: String, $seriesTitle: String, $batchName: String, $replayUrl: String) {
+    updateLiveClass(id: $id, titleEn: $titleEn, titleHi: $titleHi, instructor: $instructor, startTime: $startTime, durationMins: $durationMins, videoCallUrl: $videoCallUrl, seriesTitle: $seriesTitle, batchName: $batchName, replayUrl: $replayUrl) {
+      id
+    }
+  }
+`;
+
+const DELETE_LIVE_CLASS_MUTATION = gql`
+  mutation DeleteLiveClass($id: ID!) {
+    deleteLiveClass(id: $id)
+  }
+`;
+
+const SEND_LIVE_CLASS_REMINDER_MUTATION = gql`
+  mutation SendLiveClassReminder($classId: ID!) {
+    sendLiveClassReminder(classId: $classId)
+  }
+`;
+
+const MANAGE_CONTENT_QUERY = gql`
+  query ManageContent {
+    manageContent {
+      id
+      slug
+      contentType
+      status
+      medicalReviewed
+      reviewedBy
+      feedback
+      translations {
+        id
+        language
+        title
+        summary
+        body
+      }
+    }
+  }
+`;
+
+const APPROVE_MEDICAL_CONTENT_MUTATION = gql`
+  mutation ApproveMedicalContent($id: ID!, $feedback: String) {
+    approveMedicalContent(id: $id, feedback: $feedback) {
+      id
+      status
+      medicalReviewed
+      reviewedBy
+      feedback
+    }
+  }
+`;
+
+const FLAG_MEDICAL_CONTENT_MUTATION = gql`
+  mutation FlagMedicalContent($id: ID!, $feedback: String) {
+    flagMedicalContent(id: $id, feedback: $feedback) {
+      id
+      status
+      medicalReviewed
+      reviewedBy
+      feedback
+    }
+  }
+`;
+
+const GET_CONTENT_PERFORMANCE_ANALYTICS_QUERY = gql`
+  query GetContentPerformanceAnalytics {
+    getContentPerformanceAnalytics {
+      id
+      slug
+      contentType
+      title
+      totalViews
+      uniqueViewers
+      completionCount
+      completionRate
+      saveCount
+      avgProgress
+      dropOffRate
+    }
+  }
+`;
+
 export default function MobileStaffConsole({ user }) {
   const isHi = user?.language === 'hi';
-  const [activeTab, setActiveTab] = useState('crm'); // 'crm' | 'followups' | 'tasks' | 'attendance'
+  const [activeTab, setActiveTab] = useState('crm'); // 'crm' | 'followups' | 'tasks' | 'attendance' | 'review'
   
   // Search & Profile states
   const [crmSearch, setCrmSearch] = useState('');
@@ -147,6 +246,10 @@ export default function MobileStaffConsole({ user }) {
   // Task creation states
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDesc, setNewTaskDesc] = useState('');
+
+  // Medical Review states
+  const [selectedReviewItem, setSelectedReviewItem] = useState(null);
+  const [reviewFeedback, setReviewFeedback] = useState('');
   const [selectedMemberForTask, setSelectedMemberForTask] = useState(null);
 
   // Attendance states
@@ -200,6 +303,104 @@ export default function MobileStaffConsole({ user }) {
   const [recordClassAttendance] = useMutation(RECORD_ATTENDANCE_MUTATION, {
     onCompleted: () => {
       classBookingsQuery.refetch();
+    },
+    onError: (err) => Alert.alert('Error', err.message)
+  });
+
+  const [createLiveClass, { loading: creatingLiveClass }] = useMutation(CREATE_LIVE_CLASS_MUTATION, {
+    onCompleted: () => {
+      liveClassesQuery.refetch();
+      setIsClassModalOpen(false);
+      resetClassForm();
+      Alert.alert('Success', isHi ? 'लाइव क्लास जोड़ी गई!' : 'Live class created!');
+    },
+    onError: (err) => Alert.alert('Error', err.message)
+  });
+
+  const [updateLiveClass, { loading: updatingLiveClass }] = useMutation(UPDATE_LIVE_CLASS_MUTATION, {
+    onCompleted: () => {
+      liveClassesQuery.refetch();
+      setIsClassModalOpen(false);
+      resetClassForm();
+      Alert.alert('Success', isHi ? 'लाइव क्लास अपडेट की गई!' : 'Live class updated!');
+    },
+    onError: (err) => Alert.alert('Error', err.message)
+  });
+
+  const [deleteLiveClass] = useMutation(DELETE_LIVE_CLASS_MUTATION, {
+    onCompleted: () => {
+      liveClassesQuery.refetch();
+      Alert.alert('Success', isHi ? 'लाइव क्लास हटाई गई!' : 'Live class deleted!');
+    },
+    onError: (err) => Alert.alert('Error', err.message)
+  });
+
+  const [sendLiveClassReminder, { loading: sendingReminder }] = useMutation(SEND_LIVE_CLASS_REMINDER_MUTATION, {
+    onCompleted: () => {
+      Alert.alert('Success', isHi ? 'रिमाइंडर सफलतापूर्वक भेजे गए!' : 'Reminders dispatched!');
+    },
+    onError: (err) => Alert.alert('Error', err.message)
+  });
+
+  const [isClassModalOpen, setIsClassModalOpen] = useState(false);
+  const [editingClass, setEditingClass] = useState(null);
+  const [classTitleEn, setClassTitleEn] = useState('');
+  const [classTitleHi, setClassTitleHi] = useState('');
+  const [classInstructor, setClassInstructor] = useState('');
+  const [classStartTime, setClassStartTime] = useState('');
+  const [classDurationMins, setClassDurationMins] = useState('60');
+  const [classVideoCallUrl, setClassVideoCallUrl] = useState('');
+  const [classReplayUrl, setClassReplayUrl] = useState('');
+  const [classSeriesTitle, setClassSeriesTitle] = useState('');
+  const [classBatchName, setClassBatchName] = useState('');
+
+  const resetClassForm = () => {
+    setEditingClass(null);
+    setClassTitleEn('');
+    setClassTitleHi('');
+    setClassInstructor('');
+    setClassStartTime('');
+    setClassDurationMins('60');
+    setClassVideoCallUrl('');
+    setClassReplayUrl('');
+    setClassSeriesTitle('');
+    setClassBatchName('');
+  };
+
+  const handleEditClass = (c) => {
+    setEditingClass(c);
+    setClassTitleEn(c.titleEn || '');
+    setClassTitleHi(c.titleHi || '');
+    setClassInstructor(c.instructor || '');
+    const date = new Date(c.startTime);
+    const tzoffset = date.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(date.getTime() - tzoffset)).toISOString().slice(0, 16);
+    setClassStartTime(localISOTime);
+    setClassDurationMins(String(c.durationMins || 60));
+    setClassVideoCallUrl(c.videoCallUrl || '');
+    setClassReplayUrl(c.replayUrl || '');
+    setClassSeriesTitle(c.seriesTitle || '');
+    setClassBatchName(c.batchName || '');
+    setIsClassModalOpen(true);
+  };
+
+  const manageContentQuery = useQuery(MANAGE_CONTENT_QUERY, { skip: activeTab !== 'review' });
+  const performanceQuery = useQuery(GET_CONTENT_PERFORMANCE_ANALYTICS_QUERY, { skip: activeTab !== 'analytics' });
+  const [approveContent, { loading: approvingContent }] = useMutation(APPROVE_MEDICAL_CONTENT_MUTATION, {
+    onCompleted: () => {
+      manageContentQuery.refetch();
+      setSelectedReviewItem(null);
+      setReviewFeedback('');
+      Alert.alert('Success', 'Content approved.');
+    },
+    onError: (err) => Alert.alert('Error', err.message)
+  });
+  const [flagContent, { loading: flaggingContent }] = useMutation(FLAG_MEDICAL_CONTENT_MUTATION, {
+    onCompleted: () => {
+      manageContentQuery.refetch();
+      setSelectedReviewItem(null);
+      setReviewFeedback('');
+      Alert.alert('Success', 'Content flagged/rejected.');
     },
     onError: (err) => Alert.alert('Error', err.message)
   });
@@ -308,7 +509,9 @@ export default function MobileStaffConsole({ user }) {
           { id: 'crm', icon: 'people', label: isHi ? 'सदस्य' : 'Directory' },
           { id: 'followups', icon: 'warning', label: isHi ? 'अनुवर्ती' : 'Followups' },
           { id: 'tasks', icon: 'checkbox', label: isHi ? 'कार्य' : 'Tasks' },
-          { id: 'attendance', icon: 'calendar', label: isHi ? 'उपस्थिति' : 'Attendance' }
+          { id: 'attendance', icon: 'calendar', label: isHi ? 'उपस्थिति' : 'Attendance' },
+          { id: 'review', icon: 'shield-checkmark', label: isHi ? 'सत्यापन' : 'Medical' },
+          { id: 'analytics', icon: 'analytics', label: isHi ? 'विश्लेषण' : 'Analytics' }
         ].map(tab => (
           <TouchableOpacity 
             key={tab.id} 
@@ -472,25 +675,83 @@ export default function MobileStaffConsole({ user }) {
           </View>
         )}
 
-        {/* 4. ATTENDANCE TAB */}
+        {/* 4. ATTENDANCE & SCHEDULING TAB */}
         {activeTab === 'attendance' && (
           <View>
             <TouchableOpacity 
-              style={s.pickerButton} 
-              onPress={() => setShowClassSelector(true)}
+              style={[s.addTaskBtn, { marginBottom: 12, backgroundColor: colors.maroon }]}
+              onPress={() => { resetClassForm(); setIsClassModalOpen(true); }}
             >
-              <Text style={s.pickerButtonText}>
-                {selectedClass 
-                  ? `${selectedClass.title} (${selectedClass.instructor})` 
-                  : (isHi ? "लाइव कक्षा का चयन करें..." : "Select Class Session...")
-                }
-              </Text>
-              <Ionicons name="chevron-down" size={18} color={colors.ink} />
+              <Text style={s.addTaskBtnText}>+ Schedule New Class</Text>
             </TouchableOpacity>
 
-            {selectedClass ? (
-              <View style={{ marginTop: spacing.md }}>
+            <Text style={s.sectionTitle}>{isHi ? 'कक्षाएं सूची' : 'Scheduled Classes'}</Text>
+            {liveClasses.length === 0 ? (
+              <Text style={s.emptyText}>{isHi ? 'कोई निर्धारित कक्षा नहीं है।' : 'No classes scheduled.'}</Text>
+            ) : (
+              liveClasses.map(c => {
+                const title = isHi ? c.titleHi : c.titleEn;
+                return (
+                  <View key={c.id} style={[s.taskItem, { flexDirection: 'column', alignItems: 'stretch', gap: 6 }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={{ fontWeight: 'bold', fontSize: 13, color: colors.maroonDark }}>{title}</Text>
+                      <View style={{ flexDirection: 'row', gap: 12 }}>
+                        <TouchableOpacity onPress={() => handleEditClass(c)}>
+                          <Ionicons name="create-outline" size={18} color={colors.ink} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => {
+                          Alert.alert(
+                            'Delete Class',
+                            'Are you sure you want to delete this live class session?',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              { text: 'Delete', style: 'destructive', onPress: () => deleteLiveClass({ variables: { id: c.id } }) }
+                            ]
+                          );
+                        }}>
+                          <Ionicons name="trash-outline" size={18} color={colors.error} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    <Text style={{ fontSize: 11, color: colors.muted }}>
+                      Instructor: {c.instructor} · Starts: {new Date(c.startTime).toLocaleString()}
+                    </Text>
+                    {c.seriesTitle || c.batchName ? (
+                      <View style={{ flexDirection: 'row', gap: 4 }}>
+                        {c.seriesTitle && <View style={{ backgroundColor: '#FAF5FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}><Text style={{ color: '#553C9A', fontSize: 8 }}>{c.seriesTitle}</Text></View>}
+                        {c.batchName && <View style={{ backgroundColor: '#EBF8FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}><Text style={{ color: '#2B6CB0', fontSize: 8 }}>{c.batchName}</Text></View>}
+                      </View>
+                    ) : null}
+
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                      <TouchableOpacity 
+                        style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, backgroundColor: colors.softSaffron }}
+                        onPress={() => {
+                          setSelectedClass(c);
+                          classBookingsQuery.refetch();
+                        }}
+                      >
+                        <Text style={{ fontSize: 9, color: colors.accent, fontWeight: '800' }}>
+                          {selectedClass?.id === c.id ? 'Viewing Roster' : 'View Roster'}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, backgroundColor: colors.success }}
+                        onPress={() => sendLiveClassReminder({ variables: { classId: c.id } })}
+                      >
+                        <Text style={{ fontSize: 9, color: colors.paper, fontWeight: '800' }}>Send Reminder</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })
+            )}
+
+            {/* Attendance Roster view for selected class */}
+            {selectedClass && (
+              <View style={{ marginTop: spacing.md, padding: 12, borderRadius: 8, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line }}>
                 <Text style={s.sectionTitle}>{isHi ? 'उपस्थिति सूची' : 'Attendee Roster'}</Text>
+                <Text style={{ fontSize: 11, color: colors.muted, marginBottom: 8 }}>Class: {isHi ? selectedClass.titleHi : selectedClass.titleEn}</Text>
                 {classBookingsQuery.loading ? (
                   <ActivityIndicator color={colors.maroon} />
                 ) : classBookings.length === 0 ? (
@@ -525,44 +786,342 @@ export default function MobileStaffConsole({ user }) {
                   ))
                 )}
               </View>
-            ) : (
-              <Text style={s.infoText}>
-                {isHi ? "उपस्थिति रिकॉर्ड देखने के लिए कृपया एक कक्षा चुनें।" : "Please select a live class to view and mark attendance."}
-              </Text>
             )}
 
-            {/* Simple Modal Selector for Classes */}
-            <Modal 
-              visible={showClassSelector} 
-              transparent 
-              animationType="fade"
-              onRequestClose={() => setShowClassSelector(false)}
+            {/* Add / Edit Class Modal */}
+            <Modal
+              visible={isClassModalOpen}
+              transparent
+              animationType="slide"
+              onRequestClose={() => { setIsClassModalOpen(false); resetClassForm(); }}
+            >
+              <View style={s.modalOverlay}>
+                <ScrollView contentContainerStyle={[s.modalContent, { padding: 20, width: '90%' }]}>
+                  <Text style={s.modalTitle}>{editingClass ? 'Edit Live Class' : 'Schedule Live Class'}</Text>
+                  
+                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.ink, marginTop: 8 }}>Class Title (English) *</Text>
+                  <TextInput 
+                    style={{ borderWidth: 1, borderColor: colors.line, borderRadius: 8, padding: 8, marginTop: 4, fontSize: 12, color: colors.ink }}
+                    value={classTitleEn}
+                    onChangeText={setClassTitleEn}
+                    placeholder="e.g. Prenatal Yoga"
+                  />
+
+                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.ink, marginTop: 8 }}>Class Title (Hindi) *</Text>
+                  <TextInput 
+                    style={{ borderWidth: 1, borderColor: colors.line, borderRadius: 8, padding: 8, marginTop: 4, fontSize: 12, color: colors.ink }}
+                    value={classTitleHi}
+                    onChangeText={setClassTitleHi}
+                    placeholder="e.g. गर्भावस्था योग"
+                  />
+
+                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.ink, marginTop: 8 }}>Instructor *</Text>
+                  <TextInput 
+                    style={{ borderWidth: 1, borderColor: colors.line, borderRadius: 8, padding: 8, marginTop: 4, fontSize: 12, color: colors.ink }}
+                    value={classInstructor}
+                    onChangeText={setClassInstructor}
+                    placeholder="e.g. Dr. Priya Sharma"
+                  />
+
+                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.ink, marginTop: 8 }}>Start Time (YYYY-MM-DDTHH:MM) *</Text>
+                  <TextInput 
+                    style={{ borderWidth: 1, borderColor: colors.line, borderRadius: 8, padding: 8, marginTop: 4, fontSize: 12, color: colors.ink }}
+                    value={classStartTime}
+                    onChangeText={setClassStartTime}
+                    placeholder="e.g. 2026-07-08T18:00"
+                  />
+
+                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.ink, marginTop: 8 }}>Duration (Minutes) *</Text>
+                  <TextInput 
+                    style={{ borderWidth: 1, borderColor: colors.line, borderRadius: 8, padding: 8, marginTop: 4, fontSize: 12, color: colors.ink }}
+                    value={classDurationMins}
+                    onChangeText={setClassDurationMins}
+                    keyboardType="numeric"
+                  />
+
+                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.ink, marginTop: 8 }}>Video Call URL *</Text>
+                  <TextInput 
+                    style={{ borderWidth: 1, borderColor: colors.line, borderRadius: 8, padding: 8, marginTop: 4, fontSize: 12, color: colors.ink }}
+                    value={classVideoCallUrl}
+                    onChangeText={setClassVideoCallUrl}
+                    placeholder="e.g. https://meet.google.com/abc"
+                  />
+
+                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.ink, marginTop: 8 }}>Series Title (Optional)</Text>
+                  <TextInput 
+                    style={{ borderWidth: 1, borderColor: colors.line, borderRadius: 8, padding: 8, marginTop: 4, fontSize: 12, color: colors.ink }}
+                    value={classSeriesTitle}
+                    onChangeText={setClassSeriesTitle}
+                    placeholder="e.g. Yoga Series"
+                  />
+
+                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.ink, marginTop: 8 }}>Batch Segment (Optional)</Text>
+                  <TextInput 
+                    style={{ borderWidth: 1, borderColor: colors.line, borderRadius: 8, padding: 8, marginTop: 4, fontSize: 12, color: colors.ink }}
+                    value={classBatchName}
+                    onChangeText={setClassBatchName}
+                    placeholder="e.g. Premium Morning"
+                  />
+
+                  {editingClass && (
+                    <>
+                      <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.ink, marginTop: 8 }}>Replay URL (Optional)</Text>
+                      <TextInput 
+                        style={{ borderWidth: 1, borderColor: colors.line, borderRadius: 8, padding: 8, marginTop: 4, fontSize: 12, color: colors.ink }}
+                        value={classReplayUrl}
+                        onChangeText={setClassReplayUrl}
+                        placeholder="e.g. https://youtube.com/..."
+                      />
+                    </>
+                  )}
+
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
+                    <TouchableOpacity 
+                      style={{ flex: 1, padding: 10, borderRadius: 8, backgroundColor: colors.maroon, alignItems: 'center' }}
+                      onPress={() => {
+                        if (!classTitleEn || !classTitleHi || !classInstructor || !classStartTime || !classVideoCallUrl) {
+                          Alert.alert('Required Fields', 'Please fill in all fields.');
+                          return;
+                        }
+                        const vars = {
+                          titleEn: classTitleEn,
+                          titleHi: classTitleHi,
+                          instructor: classInstructor,
+                          startTime: new Date(classStartTime).toISOString(),
+                          durationMins: parseInt(classDurationMins),
+                          videoCallUrl: classVideoCallUrl,
+                          seriesTitle: classSeriesTitle || null,
+                          batchName: classBatchName || null
+                        };
+                        if (editingClass) {
+                          updateLiveClass({ variables: { id: editingClass.id, ...vars, replayUrl: classReplayUrl || null } });
+                        } else {
+                          createLiveClass({ variables: vars });
+                        }
+                      }}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 12 }}>Save</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={{ flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.line, alignItems: 'center' }}
+                      onPress={() => { setIsClassModalOpen(false); resetClassForm(); }}
+                    >
+                      <Text style={{ color: colors.muted, fontWeight: 'bold', fontSize: 12 }}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+              </View>
+            </Modal>
+          </View>
+        )}
+
+        {/* 5. MEDICAL REVIEW TAB */}
+        {activeTab === 'review' && (
+          <View>
+            <Text style={s.sectionTitle}>{isHi ? 'चिकित्सीय सत्यापन कतार' : 'Medical verification queue'}</Text>
+            {manageContentQuery.loading ? (
+              <ActivityIndicator color={colors.maroon} style={{ marginVertical: 30 }} />
+            ) : (manageContentQuery.data?.manageContent || []).length === 0 ? (
+              <Text style={s.emptyText}>{isHi ? 'कोई सामग्री नहीं मिली।' : 'No content items found.'}</Text>
+            ) : (
+              (manageContentQuery.data?.manageContent || []).map(item => {
+                const translation = item.translations?.find(t => t.language === 'en') || item.translations?.[0];
+                return (
+                  <View key={item.id} style={s.attendanceRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.userTileName}>{translation?.title || item.slug}</Text>
+                      <Text style={s.userTileSub}>{item.contentType.toUpperCase()} · Status: {item.status.toUpperCase()}</Text>
+                    </View>
+                    <TouchableOpacity 
+                      style={[
+                        s.miniBtn, 
+                        { backgroundColor: item.status === 'review' ? colors.maroon : colors.muted }
+                      ]} 
+                      onPress={() => {
+                        setSelectedReviewItem(item);
+                        setReviewFeedback(item.feedback || '');
+                      }}
+                    >
+                      <Text style={s.miniBtnText}>
+                        {item.status === 'review' ? (isHi ? 'सत्यापन करें' : 'Review') : (isHi ? 'विवरण' : 'Inspect')}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })
+            )}
+
+            {/* Clinical Review Modal */}
+            <Modal
+              visible={!!selectedReviewItem}
+              transparent
+              animationType="slide"
+              onRequestClose={() => setSelectedReviewItem(null)}
             >
               <View style={s.modalOverlay}>
                 <View style={s.modalContent}>
-                  <Text style={s.modalTitle}>{isHi ? 'कक्षा चुनें' : 'Select Class'}</Text>
-                  <FlatList 
-                    data={liveClasses}
-                    keyExtractor={item => item.id}
-                    renderItem={({ item }) => (
-                      <TouchableOpacity 
-                        style={s.classItem}
-                        onPress={() => {
-                          setSelectedClass(item);
-                          setShowClassSelector(false);
-                        }}
-                      >
-                        <Text style={s.classItemTitle}>{item.title}</Text>
-                        <Text style={s.classItemSub}>{item.instructor} · {new Date(item.startTime).toLocaleDateString()}</Text>
-                      </TouchableOpacity>
+                  <ScrollView>
+                    <Text style={s.modalTitle}>Clinical & Medical Review</Text>
+                    
+                    {selectedReviewItem && (
+                      <View style={{ gap: 10 }}>
+                        <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Resource Key: <Text style={{ fontWeight: 'normal' }}>{selectedReviewItem.slug}</Text></Text>
+                        <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Type: <Text style={{ fontWeight: 'normal' }}>{selectedReviewItem.contentType.toUpperCase()}</Text></Text>
+                        <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Status: <Text style={{ fontWeight: 'normal' }}>{selectedReviewItem.status.toUpperCase()}</Text></Text>
+                        
+                        <Divider />
+                        
+                        <Text style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 4 }}>Translations:</Text>
+                        {(selectedReviewItem.translations || []).map(t => (
+                          <View key={t.id || t.language} style={{ padding: 8, backgroundColor: colors.canvas, borderRadius: 6, marginBottom: 6 }}>
+                            <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.maroon }}>[{t.language.toUpperCase()}] {t.title}</Text>
+                            {t.summary && <Text style={{ fontSize: 10, color: colors.muted, marginTop: 2 }}>Summary: {t.summary}</Text>}
+                            {t.body && <Text style={{ fontSize: 10, color: colors.ink, marginTop: 4 }}>{t.body}</Text>}
+                          </View>
+                        ))}
+
+                        {selectedReviewItem.reviewedBy && (
+                          <Text style={{ fontSize: 10, color: colors.muted }}>Reviewed By: {selectedReviewItem.reviewedBy}</Text>
+                        )}
+
+                        {selectedReviewItem.status !== 'review' && selectedReviewItem.feedback ? (
+                          <View style={{ padding: 8, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 6 }}>
+                            <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#B45309' }}>Clinical Notes:</Text>
+                            <Text style={{ fontSize: 11, fontStyle: 'italic', color: '#78350F' }}>"{selectedReviewItem.feedback}"</Text>
+                          </View>
+                        ) : null}
+
+                        {selectedReviewItem.status === 'review' ? (
+                          <View style={{ gap: 4 }}>
+                            <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Enter Verification Notes:</Text>
+                            <TextInput
+                              style={[s.textArea, { height: 70 }]}
+                              placeholder="Clinical assessment safety details, comments..."
+                              value={reviewFeedback}
+                              onChangeText={setReviewFeedback}
+                              multiline
+                            />
+                          </View>
+                        ) : null}
+
+                        <Divider />
+
+                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+                          <TouchableOpacity 
+                            style={[s.miniBtn, { backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.line }]} 
+                            onPress={() => setSelectedReviewItem(null)}
+                          >
+                            <Text style={[s.miniBtnText, { color: colors.ink }]}>{isHi ? 'बंद करें' : 'Close'}</Text>
+                          </TouchableOpacity>
+
+                          {selectedReviewItem.status === 'review' ? (
+                            <>
+                              <TouchableOpacity 
+                                style={[s.miniBtn, { backgroundColor: colors.error }]} 
+                                onPress={() => flagContent({ variables: { id: selectedReviewItem.id, feedback: reviewFeedback } })}
+                                disabled={flaggingContent}
+                              >
+                                <Text style={s.miniBtnText}>{isHi ? 'अस्वीकार करें' : 'Flag / Reject'}</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity 
+                                style={[s.miniBtn, { backgroundColor: colors.success }]} 
+                                onPress={() => approveContent({ variables: { id: selectedReviewItem.id, feedback: reviewFeedback } })}
+                                disabled={approvingContent}
+                              >
+                                <Text style={s.miniBtnText}>{isHi ? 'स्वीकृत करें' : 'Approve'}</Text>
+                              </TouchableOpacity>
+                            </>
+                          ) : null}
+
+                          {selectedReviewItem.status === 'approved' ? (
+                            <TouchableOpacity 
+                              style={[s.miniBtn, { backgroundColor: colors.error }]} 
+                              onPress={() => flagContent({ variables: { id: selectedReviewItem.id, feedback: 'Revoked by clinical user' } })}
+                              disabled={flaggingContent}
+                            >
+                              <Text style={s.miniBtnText}>{isHi ? 'रद्द करें' : 'Revoke Approval'}</Text>
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
+                      </View>
                     )}
-                  />
-                  <TouchableOpacity style={s.closeBtn} onPress={() => setShowClassSelector(false)}>
-                    <Text style={s.closeBtnText}>{isHi ? 'बंद करें' : 'Close'}</Text>
-                  </TouchableOpacity>
+                  </ScrollView>
                 </View>
               </View>
             </Modal>
+          </View>
+        )}
+
+        {/* 6. CONTENT ANALYTICS TAB */}
+        {activeTab === 'analytics' && (
+          <View>
+            <Text style={s.sectionTitle}>{isHi ? 'सामग्री प्रदर्शन विश्लेषण' : 'Content Performance Analytics'}</Text>
+            
+            {performanceQuery.loading ? (
+              <ActivityIndicator color={colors.maroon} style={{ marginVertical: 30 }} />
+            ) : (
+              <View style={{ gap: 12 }}>
+                {/* Stats Overview */}
+                <View style={[s.createTaskCard, { padding: 12, gap: 6 }]}>
+                  <Text style={{ fontSize: 12, color: colors.muted }}>
+                    {isHi ? 'कुल सामग्री मदें:' : 'Total items:'} <Text style={{ fontWeight: 'bold', color: colors.maroon }}>{performanceQuery.data?.getContentPerformanceAnalytics?.length || 0}</Text>
+                  </Text>
+                  <Text style={{ fontSize: 12, color: colors.muted }}>
+                    {isHi ? 'कुल व्यूज़ संख्या:' : 'Total views:'} <Text style={{ fontWeight: 'bold', color: colors.maroon }}>{(performanceQuery.data?.getContentPerformanceAnalytics || []).reduce((sum, item) => sum + item.totalViews, 0)}</Text>
+                  </Text>
+                  <Text style={{ fontSize: 12, color: colors.muted }} numberOfLines={1}>
+                    {isHi ? 'शीर्ष प्रदर्शन:' : 'Top performer:'} <Text style={{ fontWeight: 'bold', color: colors.maroon }}>{performanceQuery.data?.getContentPerformanceAnalytics?.[0]?.title || 'None'}</Text>
+                  </Text>
+
+                  <TouchableOpacity 
+                    style={[s.addTaskBtn, { marginTop: 8, backgroundColor: colors.success }]}
+                    onPress={async () => {
+                      const reports = performanceQuery.data?.getContentPerformanceAnalytics || [];
+                      const headers = "Title,Slug,Content Type,Total Views,Unique Viewers,Completion Rate (%),Saves Count,Avg Progress (%),Drop-off Rate (%)\n";
+                      const rows = reports.map(r => `"${r.title.replace(/"/g, '""')}",${r.slug},${r.contentType},${r.totalViews},${r.uniqueViewers},${r.completionRate},${r.saveCount},${r.avgProgress},${r.dropOffRate}`).join("\n");
+                      try {
+                        await Share.share({
+                          message: headers + rows,
+                          title: 'Content Performance Report'
+                        });
+                      } catch (err) {
+                        Alert.alert('Error', err.message);
+                      }
+                    }}
+                  >
+                    <Text style={s.addTaskBtnText}>{isHi ? 'CSV शेयर करें' : 'Export & Share CSV'}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* List of reports */}
+                {(performanceQuery.data?.getContentPerformanceAnalytics || []).map((item) => (
+                  <View key={item.id} style={[s.taskItem, { flexDirection: 'column', alignItems: 'stretch', gap: 6 }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={[s.taskTitle, { flex: 1, marginRight: 8 }]} numberOfLines={1}>{item.title}</Text>
+                      <View style={[s.alertBadge, { backgroundColor: colors.softSaffron, marginTop: 0 }]}>
+                        <Text style={[s.alertBadgeText, { color: colors.accent }]}>{item.contentType.toUpperCase()}</Text>
+                      </View>
+                    </View>
+                    
+                    <Text style={{ fontSize: 10, color: colors.muted }}>
+                      Slug: {item.slug}
+                    </Text>
+
+                    <Divider style={{ marginVertical: 4 }} />
+
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ fontSize: 11, color: colors.ink }}>Views: <Text style={{ fontWeight: 'bold' }}>{item.totalViews}</Text> ({item.uniqueViewers} users)</Text>
+                      <Text style={{ fontSize: 11, color: colors.ink }}>Saves: <Text style={{ fontWeight: 'bold' }}>{item.saveCount}</Text></Text>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                      <Text style={{ fontSize: 11, color: colors.success }}>Comp: <Text style={{ fontWeight: 'bold' }}>{item.completionRate}%</Text></Text>
+                      <Text style={{ fontSize: 11, color: item.dropOffRate > 50 ? colors.error : colors.muted }}>Drop: <Text style={{ fontWeight: 'bold' }}>{item.dropOffRate}%</Text></Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         )}
 
