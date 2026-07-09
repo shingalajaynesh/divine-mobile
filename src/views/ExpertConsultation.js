@@ -15,7 +15,7 @@ import {
 import { useQuery, useMutation, gql } from '@apollo/client';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, shadows, spacing, radius } from '../theme/theme.js';
-import { SUBMIT_CASE_NOTES_MUTATION } from '../graphql/operations.js';
+import { SUBMIT_CASE_NOTES_MUTATION, SUBMIT_INTAKE_FORM_MUTATION } from '../graphql/operations.js';
 
 const GET_EXPERT_SCHEDULES = gql`
   query GetExpertSchedules {
@@ -43,6 +43,10 @@ const GET_MY_CONSULTATIONS = gql`
       status
       caseNotes
       followUpTasks
+      intakeForm
+      prescriptions
+      documents
+      followUpDate
       user {
         id
         displayName
@@ -130,6 +134,33 @@ export default function MobileExpertConsultation({ user }) {
   const [followUpTasks, setFollowUpTasks] = useState([]);
   const [newTaskInput, setNewTaskInput] = useState('');
 
+  const [prescriptions, setPrescriptions] = useState([]);
+  const [newMedName, setNewMedName] = useState('');
+  const [newMedDosage, setNewMedDosage] = useState('');
+  const [newMedDuration, setNewMedDuration] = useState('7');
+
+  const [documents, setDocuments] = useState([]);
+  const [newDocName, setNewDocName] = useState('');
+  const [newDocUrl, setNewDocUrl] = useState('');
+
+  const [followUpDate, setFollowUpDate] = useState('');
+
+  // Intake Form states
+  const [isIntakeModalOpen, setIsIntakeModalOpen] = useState(false);
+  const [intakeBookingId, setIntakeBookingId] = useState('');
+  const [intakeGestationalWeeks, setIntakeGestationalWeeks] = useState('12');
+  const [intakeSymptoms, setIntakeSymptoms] = useState([]);
+  const [intakeConcerns, setIntakeConcerns] = useState('');
+  const [intakeHistory, setIntakeHistory] = useState('');
+
+  const resetIntakeForm = () => {
+    setIntakeBookingId('');
+    setIntakeGestationalWeeks('12');
+    setIntakeSymptoms([]);
+    setIntakeConcerns('');
+    setIntakeHistory('');
+  };
+
   // Queries
   const { data: schedulesData, loading: loadingSchedules, refetch: refetchSchedules } = useQuery(GET_EXPERT_SCHEDULES);
   const { data: consultsData, loading: loadingConsults, refetch: refetchConsults } = useQuery(GET_MY_CONSULTATIONS);
@@ -138,6 +169,15 @@ export default function MobileExpertConsultation({ user }) {
   const [bookConsultation, { loading: booking }] = useMutation(BOOK_CONSULTATION);
   const [cancelConsultation, { loading: cancelling }] = useMutation(CANCEL_CONSULTATION);
   const [submitCaseNotes] = useMutation(SUBMIT_CASE_NOTES_MUTATION);
+  const [submitIntakeForm, { loading: submittingIntake }] = useMutation(SUBMIT_INTAKE_FORM_MUTATION, {
+    onCompleted: () => {
+      refetchConsults();
+      setIsIntakeModalOpen(false);
+      resetIntakeForm();
+      Alert.alert('Success', isHi ? 'प्रवेश पत्र सफलतापूर्वक सहेजा गया!' : 'Intake form submitted successfully!');
+    },
+    onError: (err) => Alert.alert('Error', err.message)
+  });
 
   const [createExpertSchedule, { loading: creatingSchedule }] = useMutation(CREATE_EXPERT_SCHEDULE, {
     onCompleted: () => {
@@ -265,7 +305,14 @@ export default function MobileExpertConsultation({ user }) {
     try {
       await submitCaseNotes({
         variables: {
-          input: { bookingId, caseNotes, followUpTasks }
+          input: {
+            bookingId,
+            caseNotes,
+            followUpTasks,
+            prescriptions: prescriptions.length > 0 ? JSON.stringify(prescriptions) : null,
+            documents: documents.length > 0 ? JSON.stringify(documents) : null,
+            followUpDate: followUpDate || null
+          }
         }
       });
       Alert.alert(isHi ? "सफलता" : "Success", isHi ? "केस नोट्स सहेजे गए।" : "Prescription notes saved.");
@@ -290,6 +337,17 @@ export default function MobileExpertConsultation({ user }) {
     } catch (e) {
       setFollowUpTasks([]);
     }
+    try {
+      setPrescriptions(JSON.parse(consult.prescriptions || '[]'));
+    } catch (e) {
+      setPrescriptions([]);
+    }
+    try {
+      setDocuments(JSON.parse(consult.documents || '[]'));
+    } catch (e) {
+      setDocuments([]);
+    }
+    setFollowUpDate(consult.followUpDate || '');
   };
 
   return (
@@ -388,6 +446,28 @@ export default function MobileExpertConsultation({ user }) {
                       <Text style={s.callBtnText}>{isHi ? "कॉल शुरू करें" : "Start Video Call"}</Text>
                     </TouchableOpacity>
 
+                    {/* Patient Intake Form Details */}
+                    {consult.intakeForm ? (
+                      <View style={{ backgroundColor: colors.canvas, padding: 12, borderRadius: 8, marginVertical: 8, borderWidth: 1, borderColor: colors.line }}>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: colors.maroon, marginBottom: 4 }}>📋 Patient Intake Form</Text>
+                        {(() => {
+                          try {
+                            const intake = JSON.parse(consult.intakeForm);
+                            return (
+                              <View style={{ gap: 4 }}>
+                                <Text style={{ fontSize: 10, color: colors.ink }}><Text style={{ fontWeight: '700' }}>Weeks:</Text> {intake.gestationalWeeks} Weeks</Text>
+                                <Text style={{ fontSize: 10, color: colors.ink }}><Text style={{ fontWeight: '700' }}>Symptoms:</Text> {(intake.symptoms || []).join(', ') || 'None'}</Text>
+                                <Text style={{ fontSize: 10, color: colors.ink }}><Text style={{ fontWeight: '700' }}>Concerns:</Text> {intake.concerns}</Text>
+                                <Text style={{ fontSize: 10, color: colors.ink }}><Text style={{ fontWeight: '700' }}>History:</Text> {intake.medicalHistory || 'None'}</Text>
+                              </View>
+                            );
+                          } catch (e) {
+                            return null;
+                          }
+                        })()}
+                      </View>
+                    ) : null}
+
                     {/* Editor / Display */}
                     <View style={{ marginTop: 12 }}>
                       {editingBookingId === consult.id ? (
@@ -400,6 +480,99 @@ export default function MobileExpertConsultation({ user }) {
                             multiline
                             placeholder="Write medical advice..."
                           />
+
+                          <Text style={s.label}>Follow-up Target (YYYY-MM-DD)</Text>
+                          <TextInput 
+                            style={s.input}
+                            value={followUpDate}
+                            onChangeText={setFollowUpDate}
+                            placeholder="e.g. 2026-07-20"
+                          />
+
+                          {/* Prescriptions */}
+                          <Text style={s.label}>Prescribe Medicines / Supplements</Text>
+                          <View style={{ gap: 6, marginBottom: 8, padding: 8, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: colors.line }}>
+                            <TextInput 
+                              style={s.input}
+                              placeholder="Medicine Name (e.g. Folic Acid)"
+                              value={newMedName}
+                              onChangeText={newText => setNewMedName(newText)}
+                            />
+                            <TextInput 
+                              style={s.input}
+                              placeholder="Dosage (e.g. Once Daily)"
+                              value={newMedDosage}
+                              onChangeText={setNewMedDosage}
+                            />
+                            <View style={{ flexDirection: 'row', gap: 6 }}>
+                              <TextInput 
+                                style={[s.input, { flex: 1 }]}
+                                placeholder="Days (e.g. 10)"
+                                value={newMedDuration}
+                                onChangeText={setNewMedDuration}
+                                keyboardType="numeric"
+                              />
+                              <TouchableOpacity 
+                                style={[s.addTaskBtn, { height: 38, justifyContent: 'center', alignItems: 'center', minWidth: 44 }]} 
+                                onPress={() => {
+                                  if (!newMedName) return;
+                                  setPrescriptions([...prescriptions, { name: newMedName, dosage: newMedDosage, durationDays: parseInt(newMedDuration) || 7 }]);
+                                  setNewMedName('');
+                                  setNewMedDosage('');
+                                  setNewMedDuration('7');
+                                }}
+                              >
+                                <Ionicons name="add" size={18} color={colors.paper} />
+                              </TouchableOpacity>
+                            </View>
+                            {prescriptions.map((p, idx) => (
+                              <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 2 }}>
+                                <Text style={{ fontSize: 10, color: colors.ink }}>• {p.name} - {p.dosage} ({p.durationDays} days)</Text>
+                                <TouchableOpacity onPress={() => setPrescriptions(prescriptions.filter((_, i) => i !== idx))}>
+                                  <Ionicons name="trash" size={12} color={colors.error} />
+                                </TouchableOpacity>
+                              </View>
+                            ))}
+                          </View>
+
+                          {/* Linked Documents */}
+                          <Text style={s.label}>Diagnostic Report Attachments</Text>
+                          <View style={{ gap: 6, marginBottom: 8, padding: 8, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: colors.line }}>
+                            <TextInput 
+                              style={s.input}
+                              placeholder="Document Name (e.g. Scan)"
+                              value={newDocName}
+                              onChangeText={setNewDocName}
+                            />
+                            <View style={{ flexDirection: 'row', gap: 6 }}>
+                              <TextInput 
+                                style={[s.input, { flex: 1 }]}
+                                placeholder="Link URL"
+                                value={newDocUrl}
+                                onChangeText={setNewDocUrl}
+                              />
+                              <TouchableOpacity 
+                                style={[s.addTaskBtn, { height: 38, justifyContent: 'center', alignItems: 'center', minWidth: 44 }]} 
+                                onPress={() => {
+                                  if (!newDocName || !newDocUrl) return;
+                                  setDocuments([...documents, { name: newDocName, url: newDocUrl }]);
+                                  setNewDocName('');
+                                  setNewDocUrl('');
+                                }}
+                              >
+                                <Ionicons name="add" size={18} color={colors.paper} />
+                              </TouchableOpacity>
+                            </View>
+                            {documents.map((d, idx) => (
+                              <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 2 }}>
+                                <Text style={{ fontSize: 10, color: colors.ink }}>• {d.name}</Text>
+                                <TouchableOpacity onPress={() => setDocuments(documents.filter((_, i) => i !== idx))}>
+                                  <Ionicons name="trash" size={12} color={colors.error} />
+                                </TouchableOpacity>
+                              </View>
+                            ))}
+                          </View>
+
                           <Text style={s.label}>Follow-up Tasks</Text>
                           <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
                             <TextInput 
@@ -414,7 +587,7 @@ export default function MobileExpertConsultation({ user }) {
                           </View>
                           {followUpTasks.map((t, idx) => (
                             <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 2 }}>
-                              <Text style={{ fontSize: 11 }}>• {t}</Text>
+                              <Text style={{ fontSize: 11, color: colors.ink }}>• {t}</Text>
                               <TouchableOpacity onPress={() => setFollowUpTasks(followUpTasks.filter((_, i) => i !== idx))}>
                                 <Ionicons name="trash" size={12} color={colors.error} />
                               </TouchableOpacity>
@@ -430,6 +603,52 @@ export default function MobileExpertConsultation({ user }) {
                             <View style={s.prescriptionCard}>
                               <Text style={s.prescriptionHeader}>Clinical Notes</Text>
                               <Text style={s.prescriptionText}>{consult.caseNotes}</Text>
+
+                              {/* Prescriptions list */}
+                              {(() => {
+                                try {
+                                  const list = JSON.parse(consult.prescriptions || '[]');
+                                  if (list.length > 0) {
+                                    return (
+                                      <View style={{ marginTop: 8 }}>
+                                        <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.maroon }}>Prescribed Medicines:</Text>
+                                        {list.map((item, idx) => (
+                                          <Text key={idx} style={{ fontSize: 10, color: colors.ink, marginVertical: 1 }}>• {item.name}: {item.dosage} ({item.durationDays} Days)</Text>
+                                        ))}
+                                      </View>
+                                    );
+                                  }
+                                } catch (e) {}
+                                return null;
+                              })()}
+
+                              {/* Attachments */}
+                              {(() => {
+                                try {
+                                  const list = JSON.parse(consult.documents || '[]');
+                                  if (list.length > 0) {
+                                    return (
+                                      <View style={{ marginTop: 8 }}>
+                                        <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.maroon }}>Attached Reports:</Text>
+                                        {list.map((item, idx) => (
+                                          <TouchableOpacity key={idx} onPress={() => Linking.openURL(item.url)}>
+                                            <Text style={{ fontSize: 10, color: '#2563EB', textDecorationLine: 'underline', marginVertical: 1 }}>• {item.name}</Text>
+                                          </TouchableOpacity>
+                                        ))}
+                                      </View>
+                                    );
+                                  }
+                                } catch (e) {}
+                                return null;
+                              })()}
+
+                              {/* Follow up target */}
+                              {consult.followUpDate && (
+                                <Text style={{ fontSize: 10, color: colors.muted, marginTop: 8, fontWeight: '700' }}>
+                                  📅 Follow-up Target: {new Date(consult.followUpDate).toLocaleDateString()}
+                                </Text>
+                              )}
+
                               {tasks.length > 0 && (
                                 <View style={{ marginTop: 8 }}>
                                   <Text style={s.tasksHeader}>Tasks Assigned:</Text>
@@ -668,6 +887,28 @@ export default function MobileExpertConsultation({ user }) {
                       📅 {new Date(consult.scheduleSlot).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </Text>
 
+                    {/* Pre-consultation intake prompt */}
+                    {!consult.intakeForm ? (
+                      <View style={{ backgroundColor: '#FFFBEB', padding: 10, borderRadius: 8, marginVertical: 8, borderWidth: 1, borderColor: '#FEF3C7', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={{ fontSize: 10, color: '#B45309', flex: 1, marginRight: 8 }}>
+                          ⚠ Please fill out the pre-consultation intake details.
+                        </Text>
+                        <TouchableOpacity 
+                          style={{ backgroundColor: colors.maroon, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 }}
+                          onPress={() => {
+                            setIntakeBookingId(consult.id);
+                            setIsIntakeModalOpen(true);
+                          }}
+                        >
+                          <Text style={{ color: '#fff', fontSize: 9, fontWeight: 'bold' }}>Fill Form</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <View style={{ backgroundColor: '#F0FDF4', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginVertical: 6, alignSelf: 'flex-start' }}>
+                        <Text style={{ fontSize: 9, color: '#166534', fontWeight: 'bold' }}>✓ Intake Form Submitted</Text>
+                      </View>
+                    )}
+
                     {/* Actions */}
                     <TouchableOpacity style={s.callBtn} onPress={() => Linking.openURL(consult.videoCallUrl)}>
                       <Ionicons name="videocam" size={14} color={colors.paper} />
@@ -680,6 +921,52 @@ export default function MobileExpertConsultation({ user }) {
                         <View style={s.prescriptionCard}>
                           <Text style={s.prescriptionHeader}>Prescription Notes</Text>
                           <Text style={s.prescriptionText}>{consult.caseNotes}</Text>
+
+                          {/* Prescriptions list */}
+                          {(() => {
+                            try {
+                              const list = JSON.parse(consult.prescriptions || '[]');
+                              if (list.length > 0) {
+                                return (
+                                  <View style={{ marginTop: 8 }}>
+                                    <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.maroon }}>Prescribed Medicines:</Text>
+                                    {list.map((item, idx) => (
+                                      <Text key={idx} style={{ fontSize: 10, color: colors.ink, marginVertical: 1 }}>• {item.name}: {item.dosage} ({item.durationDays} Days)</Text>
+                                    ))}
+                                  </View>
+                                );
+                              }
+                            } catch (e) {}
+                            return null;
+                          })()}
+
+                          {/* Attachments */}
+                          {(() => {
+                            try {
+                              const list = JSON.parse(consult.documents || '[]');
+                              if (list.length > 0) {
+                                return (
+                                  <View style={{ marginTop: 8 }}>
+                                    <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.maroon }}>Attached Reports:</Text>
+                                    {list.map((item, idx) => (
+                                      <TouchableOpacity key={idx} onPress={() => Linking.openURL(item.url)}>
+                                        <Text style={{ fontSize: 10, color: '#2563EB', textDecorationLine: 'underline', marginVertical: 1 }}>• {item.name}</Text>
+                                      </TouchableOpacity>
+                                    ))}
+                                  </View>
+                                );
+                              }
+                            } catch (e) {}
+                            return null;
+                          })()}
+
+                          {/* Follow up target */}
+                          {consult.followUpDate && (
+                            <Text style={{ fontSize: 10, color: colors.muted, marginTop: 8, fontWeight: '700' }}>
+                              📅 Follow-up Target: {new Date(consult.followUpDate).toLocaleDateString()}
+                            </Text>
+                          )}
+
                           {tasks.length > 0 && (
                             <View style={{ marginTop: 8 }}>
                               <Text style={s.tasksHeader}>Daily Tasks to Follow:</Text>
@@ -727,6 +1014,79 @@ export default function MobileExpertConsultation({ user }) {
               <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Close</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      </Modal>
+
+      {/* Pre-Consultation Intake Form Modal */}
+      <Modal
+        visible={isIntakeModalOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { setIsIntakeModalOpen(false); resetIntakeForm(); }}
+      >
+        <View style={s.modalOverlay}>
+          <ScrollView contentContainerStyle={s.modalContent}>
+            <Text style={s.modalTitle}>{isHi ? "पूर्व-परामर्श प्रवेश पत्र" : "Pre-Consultation Intake"}</Text>
+            
+            <Text style={s.label}>Gestational Weeks *</Text>
+            <TextInput 
+              style={s.input}
+              value={intakeGestationalWeeks}
+              onChangeText={setIntakeGestationalWeeks}
+              keyboardType="numeric"
+              placeholder="e.g. 12"
+            />
+
+            <Text style={s.label}>Reported Symptoms (comma separated)</Text>
+            <TextInput 
+              style={s.input}
+              placeholder="e.g. Nausea, Fatigue, Back Pain"
+              onChangeText={(text) => setIntakeSymptoms(text.split(',').map(item => item.trim()).filter(Boolean))}
+            />
+
+            <Text style={s.label}>Key Concerns / Discussion Questions *</Text>
+            <TextInput 
+              style={s.textArea}
+              value={intakeConcerns}
+              onChangeText={setIntakeConcerns}
+              multiline
+              placeholder="What questions do you have?"
+            />
+
+            <Text style={s.label}>Medical History (Optional)</Text>
+            <TextInput 
+              style={s.textArea}
+              value={intakeHistory}
+              onChangeText={setIntakeHistory}
+              multiline
+              placeholder="Relevant background, prior complications, chronic illnesses..."
+            />
+
+            <TouchableOpacity 
+              style={s.saveBtn} 
+              onPress={() => {
+                if (!intakeConcerns) {
+                  Alert.alert('Required Fields', 'Please mention your key concerns.');
+                  return;
+                }
+                submitIntakeForm({
+                  variables: {
+                    bookingId: intakeBookingId,
+                    gestationalWeeks: parseInt(intakeGestationalWeeks) || 12,
+                    symptoms: intakeSymptoms,
+                    concerns: intakeConcerns,
+                    medicalHistory: intakeHistory
+                  }
+                });
+              }}
+            >
+              <Text style={s.saveBtnText}>Submit Intake Form</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={s.closeBtn} onPress={() => { setIsIntakeModalOpen(false); resetIntakeForm(); }}>
+              <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Cancel</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       </Modal>
 

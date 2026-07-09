@@ -192,6 +192,36 @@ export default function MobileVitalsTracker({ user }) {
         <ActivityIndicator color={colors.maroon} style={{ marginVertical: 30 }} />
       ) : activeTab === 'vitals' ? (
         <View style={{ gap: 16 }}>
+          {/* Vitals Warnings */}
+          {latestLog && (latestLog.systolicBp >= 140 || latestLog.diastolicBp >= 90 || (latestLog.kickCount !== null && latestLog.kickCount < 10) || latestLog.bloodSugar >= 140) && (
+            <View style={{ gap: 8 }}>
+              {(latestLog.systolicBp >= 140 || latestLog.diastolicBp >= 90) && (
+                <View style={[s.alertCard, { backgroundColor: '#FEE2E2', borderColor: '#EF4444' }]}>
+                  <Text style={[s.alertTitle, { color: '#B91C1C' }]}>{isHi ? "🚨 उच्च रक्तचाप चेतावनी" : "🚨 High Blood Pressure Alert"}</Text>
+                  <Text style={[s.alertBody, { color: '#7F1D1D' }]}>
+                    {isHi ? `आपका रक्तचाप (BP) सीमा से अधिक है: ${latestLog.systolicBp}/${latestLog.diastolicBp} mmHg। कृपया आराम करें और तुरंत डॉक्टर से परामर्श लें।` : `Your BP is elevated: ${latestLog.systolicBp}/${latestLog.diastolicBp} mmHg. Please rest and contact your obstetrician immediately.`}
+                  </Text>
+                </View>
+              )}
+              {latestLog.kickCount !== null && latestLog.kickCount < 10 && (
+                <View style={[s.alertCard, { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' }]}>
+                  <Text style={[s.alertTitle, { color: '#B45309' }]}>{isHi ? "🚨 भ्रूण की हलचल में कमी" : "🚨 Low Fetal Movement Alert"}</Text>
+                  <Text style={[s.alertBody, { color: '#78350F' }]}>
+                    {isHi ? `2 घंटे में ${latestLog.kickCount} किक दर्ज की गईं (10 से कम)। कृपया पानी पिएं, बाईं करवट सोएं और पुन: गणना करें। यदि हलचल कम ही रहती है, तो तुरंत डॉक्टर से संपर्क करें।` : `Fewer than 10 kicks counted (${latestLog.kickCount} kicks in 2h). Try drinking cold water, lying on your left side, and recount. Contact your clinic if it remains low.`}
+                  </Text>
+                </View>
+              )}
+              {latestLog.bloodSugar >= 140 && (
+                <View style={[s.alertCard, { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' }]}>
+                  <Text style={[s.alertTitle, { color: '#B45309' }]}>{isHi ? "🚨 उच्च रक्त शर्करा चेतावनी" : "🚨 High Blood Sugar Alert"}</Text>
+                  <Text style={[s.alertBody, { color: '#78350F' }]}>
+                    {isHi ? `आपकी रक्त शर्करा ${latestLog.bloodSugar} mg/dL है। कृपया अपने जेस्टेशनल डाइट चार्ट का पालन करें और मीठा कम लें।` : `Your blood sugar is elevated: ${latestLog.bloodSugar} mg/dL. Please follow your gestational diet guidelines closely.`}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Logger form */}
           <View style={s.card}>
             <Text style={s.cardTitle}>📝 {isHi ? "दैनिक स्वास्थ्य वाइटल्स" : "Log Daily Vitals"}</Text>
@@ -446,5 +476,8 @@ const s = StyleSheet.create({
   chipText: { color: colors.muted, fontSize: 10, fontWeight: '800' },
   chipTextActive: { color: colors.paper },
   submitBtn: { height: 44, borderRadius: 10, backgroundColor: colors.maroon, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
-  submitBtnText: { color: colors.paper, fontSize: 11, fontWeight: '900' }
+  submitBtnText: { color: colors.paper, fontSize: 11, fontWeight: '900' },
+  alertCard: { padding: 14, borderRadius: 16, borderWidth: 1, marginBottom: 4 },
+  alertTitle: { fontSize: 12, fontWeight: '900', marginBottom: 4 },
+  alertBody: { fontSize: 11, lineHeight: 16 }
 });

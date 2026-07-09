@@ -202,22 +202,33 @@ export const GET_BABY_DEVELOPMENT_QUERY = gql`
 `;
 
 export const GET_FORUM_POSTS_QUERY = gql`
-  query GetForumPosts($category: String) {
-    getForumPosts(category: $category) {
+  query GetForumPosts($category: String, $groupId: ID) {
+    getForumPosts(category: $category, groupId: $groupId) {
       id
       title
       content
       category
       likesCount
       isLiked
+      reactionsCount
+      reactionStats {
+        type
+        count
+      }
+      userReaction
       createdAt
       user {
         displayName
+      }
+      group {
+        id
+        name
       }
       comments {
         id
         content
         reported
+        reportedReason
         createdAt
         user {
           displayName
@@ -227,9 +238,32 @@ export const GET_FORUM_POSTS_QUERY = gql`
   }
 `;
 
+export const GET_FORUM_GROUPS_QUERY = gql`
+  query GetForumGroups {
+    getForumGroups {
+      id
+      name
+      description
+      coverUrl
+      isPrivate
+      createdAt
+    }
+  }
+`;
+
+export const CREATE_FORUM_GROUP_MUTATION = gql`
+  mutation CreateForumGroup($name: String!, $description: String, $coverUrl: String, $isPrivate: Boolean!) {
+    createForumGroup(name: $name, description: $description, coverUrl: $coverUrl, isPrivate: $isPrivate) {
+      id
+      name
+      description
+    }
+  }
+`;
+
 export const ADD_FORUM_POST_MUTATION = gql`
-  mutation AddForumPost($title: String!, $content: String!, $category: String) {
-    addForumPost(title: $title, content: $content, category: $category) {
+  mutation AddForumPost($title: String!, $content: String!, $category: String, $groupId: ID) {
+    addForumPost(title: $title, content: $content, category: $category, groupId: $groupId) {
       id
       title
       content
@@ -257,9 +291,23 @@ export const TOGGLE_POST_LIKE_MUTATION = gql`
   }
 `;
 
+export const REACT_TO_POST_MUTATION = gql`
+  mutation ReactToPost($postId: ID!, $reactionType: String!) {
+    reactToPost(postId: $postId, reactionType: $reactionType) {
+      id
+      reactionsCount
+      reactionStats {
+        type
+        count
+      }
+      userReaction
+    }
+  }
+`;
+
 export const REPORT_POST_MUTATION = gql`
-  mutation ReportPost($postId: ID!) {
-    reportPost(postId: $postId) {
+  mutation ReportPost($postId: ID!, $reason: String) {
+    reportPost(postId: $postId, reason: $reason) {
       id
       reported
       reportsCount
@@ -268,12 +316,53 @@ export const REPORT_POST_MUTATION = gql`
 `;
 
 export const REPORT_COMMENT_MUTATION = gql`
-  mutation ReportComment($commentId: ID!) {
-    reportComment(commentId: $commentId) {
+  mutation ReportComment($commentId: ID!, $reason: String) {
+    reportComment(commentId: $commentId, reason: $reason) {
       id
       reported
       reportsCount
     }
+  }
+`;
+
+export const GET_MODERATION_QUEUE_QUERY = gql`
+  query GetModerationQueue {
+    getModerationQueue {
+      flaggedPosts {
+        id
+        title
+        content
+        category
+        reportsCount
+        reportedReason
+        createdAt
+        user {
+          displayName
+        }
+      }
+      flaggedComments {
+        id
+        content
+        reportsCount
+        reportedReason
+        createdAt
+        user {
+          displayName
+        }
+      }
+    }
+  }
+`;
+
+export const MODERATE_POST_MUTATION = gql`
+  mutation ModeratePost($postId: ID!, $action: String!) {
+    moderatePost(postId: $postId, action: $action)
+  }
+`;
+
+export const MODERATE_COMMENT_MUTATION = gql`
+  mutation ModerateComment($commentId: ID!, $action: String!) {
+    moderateComment(commentId: $commentId, action: $action)
   }
 `;
 
@@ -782,6 +871,18 @@ export const SUBMIT_CASE_NOTES_MUTATION = gql`
       id
       caseNotes
       followUpTasks
+      prescriptions
+      documents
+      followUpDate
+    }
+  }
+`;
+
+export const SUBMIT_INTAKE_FORM_MUTATION = gql`
+  mutation SubmitIntakeForm($bookingId: ID!, $symptoms: [String!]!, $gestationalWeeks: Int!, $concerns: String!, $medicalHistory: String) {
+    submitIntakeForm(bookingId: $bookingId, symptoms: $symptoms, gestationalWeeks: $gestationalWeeks, concerns: $concerns, medicalHistory: $medicalHistory) {
+      id
+      intakeForm
     }
   }
 `;
@@ -925,6 +1026,64 @@ export const GET_SUPPORT_TICKETS_QUERY = gql`
   }
 `;
 
+export const GET_STAFF_SUPPORT_TICKETS_QUERY = gql`
+  query GetStaffSupportTickets($status: String) {
+    getStaffSupportTickets(status: $status) {
+      id
+      subject
+      description
+      status
+      priority
+      category
+      satisfactionScore
+      satisfactionFeedback
+      whatsappHandoffRequested
+      slaBreached
+      slaExpiresAt
+      createdAt
+      user {
+        displayName
+      }
+      messages {
+        id
+        senderType
+        message
+        createdAt
+        sender {
+          displayName
+        }
+      }
+    }
+  }
+`;
+
+export const GET_CANNED_REPLIES_QUERY = gql`
+  query GetCannedReplies {
+    getCannedReplies {
+      id
+      title
+      content
+      category
+    }
+  }
+`;
+
+export const GET_SUPPORT_DASHBOARD_METRICS_QUERY = gql`
+  query GetSupportDashboardMetrics {
+    getSupportDashboardMetrics {
+      totalTicketsCount
+      resolvedTicketsCount
+      pendingTicketsCount
+      slaBreachedCount
+      averageSatisfactionScore
+      satisfactionDistribution {
+        score
+        count
+      }
+    }
+  }
+`;
+
 export const CREATE_SUPPORT_TICKET = gql`
   mutation CreateSupportTicket($input: CreateSupportTicketInput!) {
     createSupportTicket(input: $input) {
@@ -961,6 +1120,42 @@ export const REQUEST_WHATSAPP_HANDOFF = gql`
       id
       whatsappHandoffRequested
     }
+  }
+`;
+
+export const CREATE_CANNED_REPLY_MUTATION = gql`
+  mutation CreateCannedReply($title: String!, $content: String!, $category: String!) {
+    createCannedReply(title: $title, content: $content, category: $category) {
+      id
+      title
+      content
+    }
+  }
+`;
+
+export const ADD_STAFF_SUPPORT_MESSAGE_MUTATION = gql`
+  mutation AddStaffSupportMessage($ticketId: ID!, $message: String!) {
+    addStaffSupportMessage(ticketId: $ticketId, message: $message) {
+      id
+      message
+      createdAt
+      senderType
+    }
+  }
+`;
+
+export const UPDATE_SUPPORT_TICKET_STATUS_MUTATION = gql`
+  mutation UpdateSupportTicketStatus($ticketId: ID!, $status: String!) {
+    updateSupportTicketStatus(ticketId: $ticketId, status: $status) {
+      id
+      status
+    }
+  }
+`;
+
+export const CHECK_SLA_ESCALATIONS_MUTATION = gql`
+  mutation CheckSlaEscalations {
+    checkSlaEscalations
   }
 `;
 
@@ -1126,5 +1321,858 @@ export const UPDATE_PARTNER_SHARING_MUTATION = gql`
       shareVitalsWithPartner
       shareReportsWithPartner
     }
+  }
+`;
+
+export const GET_COUNSELING_LEADS_QUERY = gql`
+  query GetCounselingLeads($status: String, $assignedToMe: Boolean) {
+    getCounselingLeads(status: $status, assignedToMe: $assignedToMe) {
+      id
+      name
+      email
+      phone
+      status
+      source
+      assignedTo
+      convertedUserId
+      nextFollowUp
+      convertedAt
+      createdAt
+      counselor {
+        displayName
+      }
+      convertedUser {
+        displayName
+      }
+    }
+  }
+`;
+
+export const GET_COUNSELING_LEAD_DETAILS_QUERY = gql`
+  query GetCounselingLeadDetails($id: ID!) {
+    getCounselingLeadDetails(id: $id) {
+      id
+      name
+      email
+      phone
+      status
+      source
+      assignedTo
+      convertedUserId
+      nextFollowUp
+      convertedAt
+      createdAt
+      counselor {
+        displayName
+      }
+      convertedUser {
+        displayName
+      }
+      calls {
+        id
+        leadId
+        scheduledAt
+        status
+        durationMinutes
+        outcome
+        notes
+        counselorId
+        createdAt
+        counselor {
+          displayName
+        }
+      }
+    }
+  }
+`;
+
+export const GET_COUNSELING_DASHBOARD_STATS_QUERY = gql`
+  query GetCounselingDashboardStats {
+    getCounselingDashboardStats {
+      totalLeadsCount
+      newLeadsCount
+      contactedLeadsCount
+      scheduledLeadsCount
+      convertedLeadsCount
+      lostLeadsCount
+      conversionRate
+    }
+  }
+`;
+
+export const CREATE_COUNSELING_LEAD_MUTATION = gql`
+  mutation CreateCounselingLead($name: String!, $email: String, $phone: String!, $source: String) {
+    createCounselingLead(name: $name, email: $email, phone: $phone, source: $source) {
+      id
+      name
+      status
+    }
+  }
+`;
+
+export const UPDATE_COUNSELING_LEAD_STATUS_MUTATION = gql`
+  mutation UpdateCounselingLeadStatus($id: ID!, $status: String!) {
+    updateCounselingLeadStatus(id: $id, status: $status) {
+      id
+      status
+    }
+  }
+`;
+
+export const ASSIGN_COUNSELING_LEAD_MUTATION = gql`
+  mutation AssignCounselingLead($id: ID!, $counselorId: ID!) {
+    assignCounselingLead(id: $id, counselorId: $counselorId) {
+      id
+      assignedTo
+    }
+  }
+`;
+
+export const SCHEDULE_COUNSELING_CALL_MUTATION = gql`
+  mutation ScheduleCounselingCall($leadId: ID!, $scheduledAt: String!) {
+    scheduleCounselingCall(leadId: $leadId, scheduledAt: $scheduledAt) {
+      id
+      scheduledAt
+      status
+    }
+  }
+`;
+
+export const LOG_COUNSELING_CALL_OUTCOME_MUTATION = gql`
+  mutation LogCounselingCallOutcome($callId: ID!, $status: String!, $durationMinutes: Int, $outcome: String, $notes: String) {
+    logCounselingCallOutcome(callId: $callId, status: $status, durationMinutes: $durationMinutes, outcome: $outcome, notes: $notes) {
+      id
+      status
+      outcome
+    }
+  }
+`;
+
+export const CONVERT_LEAD_TO_MEMBER_MUTATION = gql`
+  mutation ConvertLeadToMember($leadId: ID!, $centerId: ID!) {
+    convertLeadToMember(leadId: $leadId, centerId: $centerId) {
+      id
+      displayName
+    }
+  }
+`;
+
+export const GET_NOTIFICATION_DELIVERIES_REPORT_QUERY = gql`
+  query GetNotificationDeliveriesReport($limit: Int) {
+    getNotificationDeliveriesReport(limit: $limit) {
+      id
+      notificationId
+      channel
+      status
+      attempts
+      providerMessageId
+      lastAttemptAt
+      createdAt
+      notification {
+        id
+        title
+        body
+      }
+    }
+  }
+`;
+
+export const GET_CAMPAIGN_PERFORMANCE_QUERY = gql`
+  query GetCampaignPerformance($notificationId: ID!) {
+    getCampaignPerformance(notificationId: $notificationId) {
+      totalTargeted
+      deliveredCount
+      failedCount
+      pendingCount
+      channelBreakdown {
+        channel
+        sent
+        delivered
+        failed
+      }
+    }
+  }
+`;
+
+export const CREATE_NOTIFICATION_CAMPAIGN_MUTATION = gql`
+  mutation CreateNotificationCampaign($title: String!, $body: String!, $channels: [String!]!, $targetUserIds: [ID!], $centerId: ID, $scheduledAt: String) {
+    createNotificationCampaign(title: $title, body: $body, channels: $channels, targetUserIds: $targetUserIds, centerId: $centerId, scheduledAt: $scheduledAt) {
+      id
+      title
+      body
+    }
+  }
+`;
+
+export const TRIGGER_CAMPAIGN_DISPATCHED_MUTATION = gql`
+  mutation TriggerCampaignDispatched($notificationId: ID!) {
+    triggerCampaignDispatched(notificationId: $notificationId)
+  }
+`;
+
+export const GET_REMINDER_RULES_QUERY = gql`
+  query GetReminderRules {
+    getReminderRules {
+      id
+      name
+      ruleType
+      triggerCondition
+      templateTitle
+      templateBody
+      channels
+      enabled
+      createdAt
+    }
+  }
+`;
+
+export const CREATE_REMINDER_RULE_MUTATION = gql`
+  mutation CreateReminderRule($name: String!, $ruleType: String!, $triggerConditionJson: String!, $templateTitle: String!, $templateBody: String!, $channels: [String!]!, $enabled: Boolean) {
+    createReminderRule(name: $name, ruleType: $ruleType, triggerConditionJson: $triggerConditionJson, templateTitle: $templateTitle, templateBody: $templateBody, channels: $channels, enabled: $enabled) {
+      id
+      name
+      enabled
+    }
+  }
+`;
+
+export const UPDATE_REMINDER_RULE_MUTATION = gql`
+  mutation UpdateReminderRule($id: ID!, $name: String, $ruleType: String, $triggerConditionJson: String, $templateTitle: String, $templateBody: String, $channels: [String!], $enabled: Boolean) {
+    updateReminderRule(id: $id, name: $name, ruleType: $ruleType, triggerConditionJson: $triggerConditionJson, templateTitle: $templateTitle, templateBody: $templateBody, channels: $channels, enabled: $enabled) {
+      id
+      name
+      enabled
+    }
+  }
+`;
+
+export const DELETE_REMINDER_RULE_MUTATION = gql`
+  mutation DeleteReminderRule($id: ID!) {
+    deleteReminderRule(id: $id)
+  }
+`;
+
+export const RUN_REMINDER_RULES_ENGINE_MUTATION = gql`
+  mutation RunReminderRulesEngine {
+    runReminderRulesEngine {
+      success
+      rulesProcessed
+      notificationsDispatched
+    }
+  }
+`;
+
+export const GET_SPECIAL_EVENTS_QUERY = gql`
+  query GetSpecialEvents($eventType: String) {
+    getSpecialEvents(eventType: $eventType) {
+      id
+      title
+      description
+      eventType
+      eventDate
+      durationMinutes
+      speakerName
+      location
+      maxRegistrations
+      replayUrl
+      createdAt
+    }
+  }
+`;
+
+export const GET_EVENT_ATTENDEES_QUERY = gql`
+  query GetEventAttendees($eventId: ID!) {
+    getEventAttendees(eventId: $eventId) {
+      id
+      eventId
+      userId
+      registeredAt
+      checkedIn
+      checkedInAt
+      feedbackRating
+      feedbackText
+      user {
+        id
+        displayName
+        emailAddress
+        mobileNo
+      }
+    }
+  }
+`;
+
+export const CREATE_SPECIAL_EVENT_MUTATION = gql`
+  mutation CreateSpecialEvent($title: String!, $description: String!, $eventType: String!, $eventDate: String!, $durationMinutes: Int!, $speakerName: String, $location: String, $maxRegistrations: Int) {
+    createSpecialEvent(title: $title, description: $description, eventType: $eventType, eventDate: $eventDate, durationMinutes: $durationMinutes, speakerName: $speakerName, location: $location, maxRegistrations: $maxRegistrations) {
+      id
+      title
+    }
+  }
+`;
+
+export const UPDATE_SPECIAL_EVENT_MUTATION = gql`
+  mutation UpdateSpecialEvent($id: ID!, $title: String, $description: String, $eventType: String, $eventDate: String, $durationMinutes: Int, $speakerName: String, $location: String, $maxRegistrations: Int, $replayUrl: String) {
+    updateSpecialEvent(id: $id, title: $title, description: $description, eventType: $eventType, eventDate: $eventDate, durationMinutes: $durationMinutes, speakerName: $speakerName, location: $location, maxRegistrations: $maxRegistrations, replayUrl: $replayUrl) {
+      id
+      title
+      replayUrl
+    }
+  }
+`;
+
+export const DELETE_SPECIAL_EVENT_MUTATION = gql`
+  mutation DeleteSpecialEvent($id: ID!) {
+    deleteSpecialEvent(id: $id)
+  }
+`;
+
+export const REGISTER_FOR_EVENT_MUTATION = gql`
+  mutation RegisterForEvent($eventId: ID!) {
+    registerForEvent(eventId: $eventId) {
+      id
+      eventId
+      registeredAt
+    }
+  }
+`;
+
+export const CHECK_IN_TO_EVENT_MUTATION = gql`
+  mutation CheckInToEvent($registrationId: ID!) {
+    checkInToEvent(registrationId: $registrationId) {
+      id
+      checkedIn
+      checkedInAt
+    }
+  }
+`;
+
+export const SUBMIT_EVENT_FEEDBACK_MUTATION = gql`
+  mutation SubmitEventFeedback($eventId: ID!, $rating: Int!, $feedbackText: String) {
+    submitEventFeedback(eventId: $eventId, rating: $rating, feedbackText: $feedbackText) {
+      id
+      feedbackRating
+      feedbackText
+    }
+  }
+`;
+
+export const SUBMIT_REFERRAL_MUTATION = gql`
+  mutation SubmitReferral($refereeName: String!, $refereeEmail: String, $refereePhone: String!) {
+    submitReferral(refereeName: $refereeName, refereeEmail: $refereeEmail, refereePhone: $refereePhone) {
+      id
+      refereeName
+      status
+    }
+  }
+`;
+
+export const GET_MY_REFERRALS_QUERY = gql`
+  query GetMyReferrals {
+    getMyReferrals {
+      id
+      refereeName
+      refereeEmail
+      refereePhone
+      status
+      rewardPoints
+      createdAt
+    }
+  }
+`;
+
+export const GET_REFERRALS_REPORT_QUERY = gql`
+  query GetReferralsReport {
+    getReferralsReport {
+      id
+      refereeName
+      refereeEmail
+      refereePhone
+      status
+      rewardPoints
+      createdAt
+      referrer {
+        id
+        displayName
+        emailAddress
+        mobileNo
+      }
+    }
+  }
+`;
+
+export const CONVERT_REFERRAL_MUTATION = gql`
+  mutation ConvertReferral($referralId: ID!, $pointsAwarded: Int) {
+    convertReferral(referralId: $referralId, pointsAwarded: $pointsAwarded) {
+      id
+      status
+      rewardPoints
+    }
+  }
+`;
+
+export const SUBMIT_TESTIMONIAL_MUTATION = gql`
+  mutation SubmitTestimonial($content: String!, $rating: Int!) {
+    submitTestimonial(content: $content, rating: $rating) {
+      id
+      content
+      rating
+      status
+    }
+  }
+`;
+
+export const GET_TESTIMONIALS_QUERY = gql`
+  query GetTestimonials($statusFilter: String) {
+    getTestimonials(statusFilter: $statusFilter) {
+      id
+      content
+      rating
+      status
+      createdAt
+      user {
+        id
+        displayName
+        emailAddress
+      }
+    }
+  }
+`;
+
+export const MODERATE_TESTIMONIAL_MUTATION = gql`
+  mutation ModerateTestimonial($id: ID!, $status: String!) {
+    moderateTestimonial(id: $id, status: $status) {
+      id
+      status
+    }
+  }
+`;
+
+export const APPLY_FOR_AMBASSADOR_MUTATION = gql`
+  mutation ApplyForAmbassador($socialLinksJson: String!, $reason: String!) {
+    applyForAmbassador(socialLinksJson: $socialLinksJson, reason: $reason) {
+      id
+      status
+    }
+  }
+`;
+
+export const GET_AMBASSADOR_APPLICATIONS_QUERY = gql`
+  query GetAmbassadorApplications {
+    getAmbassadorApplications {
+      id
+      reason
+      status
+      createdAt
+      socialLinks
+      user {
+        id
+        displayName
+        emailAddress
+        mobileNo
+      }
+    }
+  }
+`;
+
+export const MODERATE_AMBASSADOR_APPLICATION_MUTATION = gql`
+  mutation ModerateAmbassadorApplication($id: ID!, $status: String!) {
+    moderateAmbassadorApplication(id: $id, status: $status) {
+      id
+      status
+    }
+  }
+`;
+
+export const CREATE_PRODUCT_MUTATION = gql`
+  mutation CreateProduct($title: String!, $description: String, $price: Float!, $imageUrl: String, $inventoryCount: Int!, $category: String!, $centerId: ID) {
+    createProduct(title: $title, description: $description, price: $price, imageUrl: $imageUrl, inventoryCount: $inventoryCount, category: $category, centerId: $centerId) {
+      id
+      title
+      price
+      inventoryCount
+      category
+      centerId
+    }
+  }
+`;
+
+export const UPDATE_PRODUCT_MUTATION = gql`
+  mutation UpdateProduct($id: ID!, $title: String, $description: String, $price: Float, $imageUrl: String, $inventoryCount: Int, $category: String, $centerId: ID) {
+    updateProduct(id: $id, title: $title, description: $description, price: $price, imageUrl: $imageUrl, inventoryCount: $inventoryCount, category: $category, centerId: $centerId) {
+      id
+      title
+      price
+      inventoryCount
+      category
+      centerId
+    }
+  }
+`;
+
+export const DELETE_PRODUCT_MUTATION = gql`
+  mutation DeleteProduct($id: ID!) {
+    deleteProduct(id: $id)
+  }
+`;
+
+export const GET_ADMIN_INVOICES_QUERY = gql`
+  query GetAdminInvoices {
+    getAdminInvoices {
+      id
+      amount
+      status
+      invoiceNumber
+      billingDate
+      dueDate
+      user {
+        displayName
+      }
+      subscription {
+        id
+        status
+        plan {
+          name
+        }
+      }
+      payment {
+        status
+      }
+    }
+  }
+`;
+
+export const GET_COUPONS_QUERY = gql`
+  query GetCoupons {
+    getCoupons {
+      id
+      code
+      discountPercent
+      discountAmount
+      validFrom
+      validUntil
+      maxRedemptions
+      redemptionsCount
+    }
+  }
+`;
+
+export const CREATE_SUBSCRIPTION_PLAN_MUTATION = gql`
+  mutation CreateSubscriptionPlan($name: String!, $description: String, $price: Float!, $billingPeriod: String!, $trialDays: Int!, $features: [String!]!) {
+    createSubscriptionPlan(name: $name, description: $description, price: $price, billingPeriod: $billingPeriod, trialDays: $trialDays, features: $features) {
+      id
+      name
+      price
+      billingPeriod
+      trialDays
+      features
+    }
+  }
+`;
+
+export const UPDATE_SUBSCRIPTION_PLAN_MUTATION = gql`
+  mutation UpdateSubscriptionPlan($id: ID!, $name: String, $description: String, $price: Float, $billingPeriod: String, $trialDays: Int, $features: [String!]) {
+    updateSubscriptionPlan(id: $id, name: $name, description: $description, price: $price, billingPeriod: $billingPeriod, trialDays: $trialDays, features: $features) {
+      id
+      name
+      price
+    }
+  }
+`;
+
+export const DELETE_SUBSCRIPTION_PLAN_MUTATION = gql`
+  mutation DeleteSubscriptionPlan($id: ID!) {
+    deleteSubscriptionPlan(id: $id)
+  }
+`;
+
+export const CREATE_COUPON_MUTATION = gql`
+  mutation CreateCoupon($code: String!, $discountPercent: Int, $discountAmount: Float, $validFrom: String!, $validUntil: String!, $maxRedemptions: Int) {
+    createCoupon(code: $code, discountPercent: $discountPercent, discountAmount: $discountAmount, validFrom: $validFrom, validUntil: $validUntil, maxRedemptions: $maxRedemptions) {
+      id
+      code
+    }
+  }
+`;
+
+export const DELETE_COUPON_MUTATION = gql`
+  mutation DeleteCoupon($id: ID!) {
+    deleteCoupon(id: $id)
+  }
+`;
+
+export const SIMULATE_RENEWALS_MUTATION = gql`
+  mutation SimulateRenewals {
+    simulateRenewals {
+      id
+      status
+      currentPeriodEndDate
+    }
+  }
+`;
+
+export const GET_PLANS_QUERY = gql`
+  query GetPlans {
+    getPlans {
+      id
+      name
+      description
+      price
+      billingPeriod
+      trialDays
+      features
+    }
+  }
+`;
+
+export const GET_FINANCIAL_REPORT_QUERY = gql`
+  query GetFinancialReport($startDate: String, $endDate: String, $centerId: ID) {
+    getFinancialReport(startDate: $startDate, endDate: $endDate, centerId: $centerId) {
+      totalRevenue
+      totalRefunds
+      netRevenue
+      totalCenterShare
+      totalPlatformShare
+      transactionCount
+      reconciledCount
+    }
+  }
+`;
+
+export const GET_FINANCIAL_TRANSACTIONS_QUERY = gql`
+  query GetFinancialTransactions($centerId: ID, $type: String) {
+    getFinancialTransactions(centerId: $centerId, type: $type) {
+      id
+      amount
+      type
+      status
+      centerShare
+      platformShare
+      reconciledAt
+      reconciliationNotes
+      createdAt
+      user {
+        displayName
+      }
+      center {
+        name
+      }
+      payment {
+        id
+        status
+      }
+    }
+  }
+`;
+
+export const RECONCILE_TRANSACTION_MUTATION = gql`
+  mutation ReconcileTransaction($transactionId: ID!, $notes: String) {
+    reconcileTransaction(transactionId: $transactionId, notes: $notes) {
+      id
+      reconciledAt
+      reconciliationNotes
+    }
+  }
+`;
+
+export const REFUND_TRANSACTION_MUTATION = gql`
+  mutation RefundTransaction($paymentId: ID!, $refundAmount: Float!, $reason: String!) {
+    refundTransaction(paymentId: $paymentId, refundAmount: $refundAmount, reason: $reason) {
+      id
+      amount
+      type
+    }
+  }
+`;
+
+export const GET_REPORT_TEMPLATES_QUERY = gql`
+  query GetReportTemplates($role: String) {
+    getReportTemplates(role: $role) {
+      id
+      title
+      description
+      role
+      filters
+      widgets
+      createdAt
+    }
+  }
+`;
+
+export const GET_REPORT_DATA_QUERY = gql`
+  query GetReportData($templateId: ID!, $filters: String) {
+    getReportData(templateId: $templateId, filters: $filters) {
+      templateId
+      metrics
+    }
+  }
+`;
+
+export const CREATE_REPORT_TEMPLATE_MUTATION = gql`
+  mutation CreateReportTemplate($title: String!, $description: String, $role: String!, $filters: String, $widgets: String!) {
+    createReportTemplate(title: $title, description: $description, role: $role, filters: $filters, widgets: $widgets) {
+      id
+      title
+      role
+    }
+  }
+`;
+
+export const DELETE_REPORT_TEMPLATE_MUTATION = gql`
+  mutation DeleteReportTemplate($id: ID!) {
+    deleteReportTemplate(id: $id)
+  }
+`;
+
+export const SHARE_REPORT_TEMPLATE_MUTATION = gql`
+  mutation ShareReportTemplate($templateId: ID!, $roles: String!) {
+    shareReportTemplate(templateId: $templateId, roles: $roles) {
+      id
+      sharedWithRoles
+    }
+  }
+`;
+
+export const CREATE_REPORT_SCHEDULE_MUTATION = gql`
+  mutation CreateReportSchedule($templateId: ID!, $frequency: String!, $recipientEmails: String!) {
+    createReportSchedule(templateId: $templateId, frequency: $frequency, recipientEmails: $recipientEmails) {
+      id
+      frequency
+      recipientEmails
+      nextRunAt
+    }
+  }
+`;
+
+export const DELETE_REPORT_SCHEDULE_MUTATION = gql`
+  mutation DeleteReportSchedule($id: ID!) {
+    deleteReportSchedule(id: $id)
+  }
+`;
+
+export const GET_REPORT_SCHEDULES_QUERY = gql`
+  query GetReportSchedules {
+    getReportSchedules {
+      id
+      templateId
+      frequency
+      recipientEmails
+      nextRunAt
+      isActive
+      template {
+        title
+      }
+    }
+  }
+`;
+
+export const PROCESS_SCHEDULED_REPORTS_MUTATION = gql`
+  mutation ProcessScheduledReports {
+    processScheduledReports
+  }
+`;
+
+export const GET_SYSTEM_SETTINGS_QUERY = gql`
+  query GetSystemSettings {
+    getSystemSettings {
+      id
+      key
+      value
+      description
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_SYSTEM_SETTING_MUTATION = gql`
+  mutation UpdateSystemSetting($key: String!, $value: String!) {
+    updateSystemSetting(key: $key, value: $value) {
+      id
+      key
+      value
+    }
+  }
+`;
+
+export const GET_FEATURE_FLAGS_QUERY = gql`
+  query GetFeatureFlags {
+    getFeatureFlags {
+      id
+      name
+      description
+      isEnabled
+      rules
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_FEATURE_FLAG_MUTATION = gql`
+  mutation UpdateFeatureFlag($name: String!, $isEnabled: Boolean!, $rules: String) {
+    updateFeatureFlag(name: $name, isEnabled: $isEnabled, rules: $rules) {
+      id
+      name
+      isEnabled
+      rules
+    }
+  }
+`;
+
+export const GET_LOCALE_STRINGS_QUERY = gql`
+  query GetLocaleStrings($lang: String!) {
+    getLocaleStrings(lang: $lang) {
+      id
+      lang
+      key
+      value
+      updatedAt
+    }
+  }
+`;
+
+export const UPSERT_LOCALE_STRING_MUTATION = gql`
+  mutation UpsertLocaleString($lang: String!, $key: String!, $value: String!) {
+    upsertLocaleString(lang: $lang, key: $key, value: $value) {
+      id
+      lang
+      key
+      value
+    }
+  }
+`;
+
+export const CHECK_FEATURE_FLAG_QUERY = gql`
+  query CheckFeatureFlag($name: String!) {
+    checkFeatureFlag(name: $name)
+  }
+`;
+
+export const GET_SERVER_DIAGNOSTICS_QUERY = gql`
+  query GetServerDiagnostics {
+    getServerDiagnostics {
+      cpuLoad
+      freeMem
+      totalMem
+      processMemory
+      uptimeSeconds
+      activeDbConnections
+      errorCount
+    }
+  }
+`;
+
+export const GET_SYSTEM_METRICS_HISTORY_QUERY = gql`
+  query GetSystemMetricsHistory($metricType: String!) {
+    getSystemMetricsHistory(metricType: $metricType) {
+      id
+      metricType
+      value
+      timestamp
+    }
+  }
+`;
+
+export const EXPORT_SYSTEM_LOGS_QUERY = gql`
+  query ExportSystemLogs($limit: Int) {
+    exportSystemLogs(limit: $limit)
   }
 `;

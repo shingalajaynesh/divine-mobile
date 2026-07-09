@@ -1,29 +1,47 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert, Linking } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert, Linking, Modal } from 'react-native';
 import { useQuery, useMutation } from '@apollo/client';
 import { Ionicons } from '@expo/vector-icons';
 import { 
   GET_SUPPORT_TICKETS_QUERY, 
+  GET_STAFF_SUPPORT_TICKETS_QUERY,
+  GET_CANNED_REPLIES_QUERY,
+  GET_SUPPORT_DASHBOARD_METRICS_QUERY,
   CREATE_SUPPORT_TICKET, 
   ADD_SUPPORT_MESSAGE, 
   CLOSE_SUPPORT_TICKET, 
-  REQUEST_WHATSAPP_HANDOFF 
+  REQUEST_WHATSAPP_HANDOFF,
+  CREATE_CANNED_REPLY_MUTATION,
+  ADD_STAFF_SUPPORT_MESSAGE_MUTATION,
+  UPDATE_SUPPORT_TICKET_STATUS_MUTATION,
+  CHECK_SLA_ESCALATIONS_MUTATION
 } from '../graphql/operations.js';
-import { colors, shadows } from '../theme/theme.js';
+import { colors, shadows, radius } from '../theme/theme.js';
 
 export default function MobileSupportHub({ user }) {
   const userLang = user?.language || 'en';
   const isHi = userLang === 'hi';
+  const isStaff = ['STAFF', 'ADMIN', 'SUPER_ADMIN'].includes(user?.role?.roleType);
 
   const [activeTab, setActiveTab] = useState('tickets');
   const [selectedTicket, setSelectedTicket] = useState(null);
 
-  // Queries & Mutations
-  const { data, loading, refetch } = useQuery(GET_SUPPORT_TICKETS_QUERY);
-  const [createTicket] = useMutation(CREATE_SUPPORT_TICKET, { onCompleted: () => refetch() });
+  // Queries
+  const { data: memberData, loading: loadingMember, refetch: refetchMember } = useQuery(GET_SUPPORT_TICKETS_QUERY);
+  
+  const [staffStatusFilter, setStaffStatusFilter] = useState(null);
+  const { data: staffData, loading: loadingStaff, refetch: refetchStaff } = useQuery(GET_STAFF_SUPPORT_TICKETS_QUERY, {
+    variables: { status: staffStatusFilter },
+    skip: !isStaff
+  });
+  const { data: cannedData, refetch: refetchCanned } = useQuery(GET_CANNED_REPLIES_QUERY, { skip: !isStaff });
+  const { data: metricsData, refetch: refetchMetrics } = useQuery(GET_SUPPORT_DASHBOARD_METRICS_QUERY, { skip: !isStaff });
+
+  // Mutations
+  const [createTicket] = useMutation(CREATE_SUPPORT_TICKET, { onCompleted: () => refetchMember() });
   const [addMessage] = useMutation(ADD_SUPPORT_MESSAGE, {
     onCompleted: (res) => {
-      refetch().then(updated => {
+      refetchMember().then(updated => {
         if (selectedTicket) {
           const fresh = updated.data?.getSupportTickets?.find(t => t.id === selectedTicket.id);
           if (fresh) setSelectedTicket(fresh);
@@ -33,7 +51,7 @@ export default function MobileSupportHub({ user }) {
   });
   const [closeTicket] = useMutation(CLOSE_SUPPORT_TICKET, {
     onCompleted: (res) => {
-      refetch().then(updated => {
+      refetchMember().then(updated => {
         const fresh = updated.data?.getSupportTickets?.find(t => t.id === selectedTicket.id);
         if (fresh) setSelectedTicket(fresh);
       });
@@ -41,10 +59,42 @@ export default function MobileSupportHub({ user }) {
   });
   const [requestHandoff] = useMutation(REQUEST_WHATSAPP_HANDOFF, {
     onCompleted: (res) => {
-      refetch().then(updated => {
+      refetchMember().then(updated => {
         const fresh = updated.data?.getSupportTickets?.find(t => t.id === selectedTicket.id);
         if (fresh) setSelectedTicket(fresh);
       });
+    }
+  });
+
+  // Staff mutations
+  const [createCannedReply] = useMutation(CREATE_CANNED_REPLY_MUTATION, { onCompleted: () => refetchCanned() });
+  const [addStaffMessage] = useMutation(ADD_STAFF_SUPPORT_MESSAGE_MUTATION, {
+    onCompleted: () => {
+      refetchStaff().then(updated => {
+        if (selectedTicket) {
+          const fresh = updated.data?.getStaffSupportTickets?.find(t => t.id === selectedTicket.id);
+          if (fresh) setSelectedTicket(fresh);
+        }
+      });
+    }
+  });
+  const [updateSupportTicketStatus] = useMutation(UPDATE_SUPPORT_TICKET_STATUS_MUTATION, {
+    onCompleted: () => {
+      refetchStaff().then(updated => {
+        if (selectedTicket) {
+          const fresh = updated.data?.getStaffSupportTickets?.find(t => t.id === selectedTicket.id);
+          if (fresh) setSelectedTicket(fresh);
+        }
+      });
+      refetchMetrics();
+      Alert.alert('Success', 'Ticket status updated.');
+    }
+  });
+  const [checkSlaEscalations] = useMutation(CHECK_SLA_ESCALATIONS_MUTATION, {
+    onCompleted: () => {
+      refetchStaff();
+      refetchMetrics();
+      Alert.alert('SLA Checked', 'SLA breaches auto-updated.');
     }
   });
 
@@ -54,14 +104,24 @@ export default function MobileSupportHub({ user }) {
   const [priority, setPriority] = useState('medium');
   const [category, setCategory] = useState('general');
 
-  // Reply state
+  // Reply states
   const [replyText, setReplyText] = useState('');
+  const [staffReplyText, setStaffReplyText] = useState('');
 
-  // Rating state
+  // Rating states
   const [satisfactionScore, setSatisfactionScore] = useState(5);
   const [satisfactionFeedback, setSatisfactionFeedback] = useState('');
 
-  const tickets = data?.getSupportTickets || [];
+  // Canned Reply Modal states
+  const [isCannedModalOpen, setIsCannedModalOpen] = useState(false);
+  const [cannedReplyTitle, setCannedReplyTitle] = useState('');
+  const [cannedReplyContent, setCannedReplyContent] = useState('');
+  const [cannedReplyCategory, setCannedReplyCategory] = useState('general');
+
+  const tickets = memberData?.getSupportTickets || [];
+  const staffTickets = staffData?.getStaffSupportTickets || [];
+  const cannedReplies = cannedData?.getCannedReplies || [];
+  const metrics = metricsData?.getSupportDashboardMetrics;
 
   const handleCreateTicket = async () => {
     if (!subject || !description) return;
@@ -89,6 +149,40 @@ export default function MobileSupportHub({ user }) {
         }
       });
       setReplyText('');
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    }
+  };
+
+  const handleSendStaffReply = async () => {
+    if (!staffReplyText || !selectedTicket) return;
+    try {
+      await addStaffMessage({
+        variables: {
+          ticketId: selectedTicket.id,
+          message: staffReplyText
+        }
+      });
+      setStaffReplyText('');
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    }
+  };
+
+  const handleCreateCannedReply = async () => {
+    if (!cannedReplyTitle || !cannedReplyContent) return;
+    try {
+      await createCannedReply({
+        variables: {
+          title: cannedReplyTitle,
+          content: cannedReplyContent,
+          category: cannedReplyCategory
+        }
+      });
+      Alert.alert('Success', 'Template added.');
+      setCannedReplyTitle('');
+      setCannedReplyContent('');
+      setIsCannedModalOpen(false);
     } catch (e) {
       Alert.alert('Error', e.message);
     }
@@ -159,12 +253,30 @@ export default function MobileSupportHub({ user }) {
             {isHi ? 'नया टिकट' : 'Raise Ticket'}
           </Text>
         </TouchableOpacity>
+        {isStaff && (
+          <TouchableOpacity 
+            style={[s.tabBtn, activeTab === 'console' && s.tabBtnActive]} 
+            onPress={() => { setActiveTab('console'); setSelectedTicket(null); }}
+          >
+            <Text style={[s.tabBtnText, activeTab === 'console' && s.tabBtnTextActive]}>
+              Console
+            </Text>
+          </TouchableOpacity>
+        )}
+        {isStaff && (
+          <TouchableOpacity 
+            style={[s.tabBtn, activeTab === 'metrics' && s.tabBtnActive]} 
+            onPress={() => { setActiveTab('metrics'); setSelectedTicket(null); }}
+          >
+            <Text style={[s.tabBtnText, activeTab === 'metrics' && s.tabBtnTextActive]}>
+              Metrics
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {loading ? (
-        <ActivityIndicator color={colors.maroon} style={{ marginVertical: 30 }} />
-      ) : selectedTicket ? (
-        // Ticket detail dialogue
+      {/* MEMBER DETAILS CHAT OR LIST VIEW */}
+      {activeTab === 'tickets' && selectedTicket && (
         <View style={{ gap: 16 }}>
           <TouchableOpacity style={s.backBtn} onPress={() => setSelectedTicket(null)}>
             <Ionicons name="arrow-back" size={16} color={colors.maroon} />
@@ -209,13 +321,11 @@ export default function MobileSupportHub({ user }) {
 
           {selectedTicket.status !== 'resolved' ? (
             <View style={{ gap: 12 }}>
-              {/* WhatsApp Handoff row */}
               <TouchableOpacity style={s.whatsappBtn} onPress={handleWhatsAppHandoff}>
                 <Ionicons name="logo-whatsapp" size={18} color={colors.paper} />
                 <Text style={s.whatsappBtnText}>{isHi ? 'व्हाट्सएप चैट हैंडओवर' : 'Handoff to WhatsApp Chat'}</Text>
               </TouchableOpacity>
 
-              {/* Chat Input */}
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <TextInput 
                   style={[s.input, { flex: 1 }]} 
@@ -228,11 +338,9 @@ export default function MobileSupportHub({ user }) {
                 </TouchableOpacity>
               </View>
 
-              {/* Resolve Form */}
               <View style={s.card}>
                 <Text style={s.cardTitle}>Rate & Close Ticket</Text>
                 
-                {/* Custom stars rating selector */}
                 <View style={{ flexDirection: 'row', gap: 8, marginVertical: 8 }}>
                   {[1, 2, 3, 4, 5].map(star => (
                     <TouchableOpacity key={star} onPress={() => setSatisfactionScore(star)}>
@@ -266,7 +374,9 @@ export default function MobileSupportHub({ user }) {
             </View>
           )}
         </View>
-      ) : activeTab === 'tickets' ? (
+      )}
+
+      {activeTab === 'tickets' && !selectedTicket && (
         <View style={{ gap: 12 }}>
           {tickets.length === 0 ? (
             <Text style={s.emptyText}>{isHi ? "कोई टिकट उपलब्ध नहीं है।" : "No support tickets raised yet."}</Text>
@@ -291,8 +401,171 @@ export default function MobileSupportHub({ user }) {
             ))
           )}
         </View>
-      ) : (
-        // Raise New ticket form
+      )}
+
+      {/* STAFF SUPPORT CONSOLE TABS */}
+      {isStaff && activeTab === 'console' && selectedTicket && (
+        <View style={{ gap: 16 }}>
+          <TouchableOpacity style={s.backBtn} onPress={() => setSelectedTicket(null)}>
+            <Ionicons name="arrow-back" size={16} color={colors.maroon} />
+            <Text style={s.backBtnText}>Queue List</Text>
+          </TouchableOpacity>
+
+          <View style={s.card}>
+            <Text style={s.ticketDetailSubject}>{selectedTicket.subject}</Text>
+            <Text style={{ fontSize: 11, color: colors.muted, marginVertical: 4 }}>User: {selectedTicket.user?.displayName || 'Mother'}</Text>
+            <View style={{ flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+              <TouchableOpacity 
+                style={[s.chip, selectedTicket.status === 'pending' && s.chipActive]}
+                onPress={() => updateSupportTicketStatus({ variables: { ticketId: selectedTicket.id, status: 'pending' } })}
+              >
+                <Text style={[s.chipText, selectedTicket.status === 'pending' && s.chipTextActive]}>Pending</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[s.chip, selectedTicket.status === 'resolved' && s.chipActive]}
+                onPress={() => updateSupportTicketStatus({ variables: { ticketId: selectedTicket.id, status: 'resolved' } })}
+              >
+                <Text style={[s.chipText, selectedTicket.status === 'resolved' && s.chipTextActive]}>Resolve</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Messages Stream */}
+          <View style={[s.card, { minHeight: 200 }]}>
+            <ScrollView contentContainerStyle={{ gap: 10 }}>
+              {selectedTicket.messages.map(msg => {
+                const isAgent = msg.senderType === 'staff';
+                return (
+                  <View 
+                    key={msg.id} 
+                    style={[
+                      s.bubble, 
+                      isAgent ? s.bubbleSelf : s.bubbleOther
+                    ]}
+                  >
+                    <Text style={[s.bubbleText, isAgent && { color: colors.paper }]}>{msg.message}</Text>
+                    <Text style={[s.bubbleTime, isAgent && { color: '#fda4af' }]}>{new Date(msg.createdAt).toLocaleTimeString()}</Text>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          {/* Reply and Canned replies */}
+          <View style={{ gap: 10 }}>
+            <Text style={{ fontSize: 10, fontWeight: 'bold', color: colors.muted }}>⚡ Predefined Canned Replies:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+              {cannedReplies.map(c => (
+                <TouchableOpacity 
+                  key={c.id} 
+                  style={s.chip} 
+                  onPress={() => setStaffReplyText(c.content)}
+                >
+                  <Text style={s.chipText}>{c.title}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <TextInput 
+              style={[s.input, { height: 75, textAlignVertical: 'top' }]} 
+              placeholder="Type reply to mother..." 
+              multiline
+              value={staffReplyText}
+              onChangeText={setStaffReplyText}
+            />
+
+            <TouchableOpacity style={[s.submitBtn, { backgroundColor: '#be123c' }]} onPress={handleSendStaffReply}>
+              <Text style={s.submitBtnText}>Submit Agent Response</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[s.submitBtn, { backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.line }]} onPress={() => setIsCannedModalOpen(true)}>
+              <Text style={{ color: colors.ink, fontSize: 11, fontWeight: '900' }}>Add Template</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {isStaff && activeTab === 'console' && !selectedTicket && (
+        <View style={{ gap: 12 }}>
+          <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+            <TouchableOpacity style={[s.chip, staffStatusFilter === null && s.chipActive]} onPress={() => setStaffStatusFilter(null)}>
+              <Text style={[s.chipText, staffStatusFilter === null && s.chipTextActive]}>All</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[s.chip, staffStatusFilter === 'open' && s.chipActive]} onPress={() => setStaffStatusFilter('open')}>
+              <Text style={[s.chipText, staffStatusFilter === 'open' && s.chipTextActive]}>Open</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[s.chip, staffStatusFilter === 'pending' && s.chipActive]} onPress={() => setStaffStatusFilter('pending')}>
+              <Text style={[s.chipText, staffStatusFilter === 'pending' && s.chipTextActive]}>Pending</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.checkSlaBtn} onPress={() => checkSlaEscalations()}>
+              <Text style={{ fontSize: 9, color: colors.paper, fontWeight: 'bold' }}>Trigger SLA Check</Text>
+            </TouchableOpacity>
+          </View>
+
+          {staffTickets.length === 0 ? (
+            <Text style={s.emptyText}>No tickets in queue.</Text>
+          ) : (
+            staffTickets.map(ticket => {
+              const isOverdue = new Date(ticket.slaExpiresAt) < new Date() && ticket.status !== 'resolved';
+              return (
+                <TouchableOpacity key={ticket.id} style={s.ticketCard} onPress={() => setSelectedTicket(ticket)}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={s.ticketSubject} numberOfLines={1}>{ticket.subject}</Text>
+                    <Ionicons name="chevron-forward" size={16} color={colors.muted} />
+                  </View>
+                  <Text style={{ fontSize: 10, color: colors.muted }}>User: {ticket.user?.displayName || 'Mother'}</Text>
+                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 6, alignItems: 'center' }}>
+                    <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: ticket.status === 'resolved' ? '#DCFCE7' : '#FEF3C7' }}>
+                      <Text style={{ fontSize: 8, color: ticket.status === 'resolved' ? '#15803D' : '#D97706', fontWeight: 'bold' }}>
+                        {ticket.status.toUpperCase()}
+                      </Text>
+                    </View>
+                    {isOverdue && (
+                      <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: '#FEE2E2' }}>
+                        <Text style={{ fontSize: 8, color: '#DC2626', fontWeight: 'bold' }}>SLA BREACHED</Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </View>
+      )}
+
+      {/* METRICS VIEW */}
+      {isStaff && activeTab === 'metrics' && metrics && (
+        <View style={{ gap: 16 }}>
+          <View style={s.card}>
+            <Text style={s.cardTitle}>Performance Analytics</Text>
+            <View style={s.metricRow}>
+              <View style={s.metricItem}>
+                <Text style={s.metricVal}>{metrics.totalTicketsCount}</Text>
+                <Text style={s.metricLbl}>Total Tickets</Text>
+              </View>
+              <View style={s.metricItem}>
+                <Text style={[s.metricVal, { color: '#16a34a' }]}>{metrics.resolvedTicketsCount}</Text>
+                <Text style={s.metricLbl}>Resolved</Text>
+              </View>
+              <View style={s.metricItem}>
+                <Text style={[s.metricVal, { color: '#d97706' }]}>{metrics.pendingTicketsCount}</Text>
+                <Text style={s.metricLbl}>Pending</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={s.card}>
+            <Text style={s.cardTitle}>SLA breaches & CSAT Score</Text>
+            <Text style={{ fontSize: 12, color: colors.ink }}>SLA Breach Count: {metrics.slaBreachedCount}</Text>
+            <Text style={{ fontSize: 12, color: colors.ink, marginTop: 4 }}>
+              Average satisfaction: {metrics.averageSatisfactionScore ? metrics.averageSatisfactionScore.toFixed(1) : 'N/A'} Stars
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* RAISE NEW TICKET FORM */}
+      {activeTab === 'new' && (
         <View style={s.card}>
           <Text style={s.cardTitle}>🎫 {isHi ? "सहायता अनुरोध भेजें" : "New Support Ticket"}</Text>
           
@@ -337,6 +610,49 @@ export default function MobileSupportHub({ user }) {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* CREATE CANNED REPLY MODAL */}
+      <Modal
+        visible={isCannedModalOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsCannedModalOpen(false)}
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.modalContent}>
+            <Text style={s.modalTitle}>Add Canned Reply Template</Text>
+            
+            <Text style={s.modalLabel}>Template Title *</Text>
+            <TextInput 
+              style={s.modalInput}
+              placeholder="e.g. Diet Plan Query answer"
+              value={cannedReplyTitle}
+              onChangeText={setCannedReplyTitle}
+            />
+
+            <Text style={s.modalLabel}>Canned Content *</Text>
+            <TextInput 
+              style={[s.modalInput, { height: 80, textAlignVertical: 'top' }]}
+              placeholder="Write the full response message here..."
+              multiline
+              value={cannedReplyContent}
+              onChangeText={setCannedReplyContent}
+            />
+
+            <TouchableOpacity 
+              style={[s.submitBtn, { backgroundColor: colors.maroon, marginTop: 12 }]}
+              onPress={handleCreateCannedReply}
+            >
+              <Text style={s.submitBtnText}>Add Template</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={{ padding: 10, alignItems: 'center' }} onPress={() => setIsCannedModalOpen(false)}>
+              <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.muted }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </ScrollView>
   );
 }
@@ -347,10 +663,10 @@ const s = StyleSheet.create({
   hero: { marginBottom: 4 },
   heroTitle: { color: colors.maroonDark, fontSize: 26, fontWeight: '900' },
   heroSubtitle: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 4 },
-  tabBar: { flexDirection: 'row', gap: 8 },
-  tabBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, alignItems: 'center' },
+  tabBar: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  tabBtn: { flex: 1, minWidth: 60, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, alignItems: 'center' },
   tabBtnActive: { backgroundColor: colors.maroon, borderColor: colors.maroon },
-  tabBtnText: { color: colors.muted, fontSize: 12, fontWeight: '800' },
+  tabBtnText: { color: colors.muted, fontSize: 11, fontWeight: '800' },
   tabBtnTextActive: { color: colors.paper },
   card: { padding: 20, borderRadius: 24, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, ...shadows.card },
   cardTitle: { color: colors.maroonDark, fontSize: 14, fontWeight: '900', marginBottom: 12 },
@@ -374,5 +690,19 @@ const s = StyleSheet.create({
   bubbleTime: { fontSize: 8, color: colors.muted, textAlign: 'right', marginTop: 4 },
   whatsappBtn: { height: 44, borderRadius: 10, backgroundColor: '#25D366', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   whatsappBtnText: { color: colors.paper, fontSize: 11, fontWeight: '900' },
-  sendBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#be123c', alignItems: 'center', justifyContent: 'center' }
+  sendBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#be123c', alignItems: 'center', justifyContent: 'center' },
+  checkSlaBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.maroon, alignItems: 'center', justifyContent: 'center' },
+
+  // Metrics Dashboard
+  metricRow: { flexDirection: 'row', justifyContent: 'space-around', marginVertical: 12 },
+  metricItem: { alignItems: 'center' },
+  metricVal: { fontSize: 24, fontWeight: '900', color: colors.maroonDark },
+  metricLbl: { fontSize: 10, color: colors.muted, marginTop: 4 },
+
+  // Modals
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: '#fff', borderRadius: radius.md, padding: 20, gap: 10 },
+  modalTitle: { fontSize: 14, fontWeight: 'bold', color: colors.maroonDark, textAlign: 'center', marginBottom: 8 },
+  modalLabel: { fontSize: 10, fontWeight: 'bold', color: colors.muted },
+  modalInput: { height: 40, paddingHorizontal: 10, borderWidth: 1, borderColor: colors.line, borderRadius: 8, fontSize: 12 }
 });
