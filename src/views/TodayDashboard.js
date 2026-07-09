@@ -568,7 +568,12 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
               return (
                 <TouchableOpacity
                   key={key}
-                  style={[s.quotientCard, active && s.quotientCardActive]}
+                  style={[
+                    s.quotientCard,
+                    isCompleted && s.quotientCardCompleted,
+                    active && s.quotientCardActive,
+                    active && isCompleted && s.quotientCardCompletedActive
+                  ]}
                   onPress={() => setActiveQuotient(key)}
                 >
                   <View style={s.quotientCardTop}>
@@ -1119,8 +1124,36 @@ const s = StyleSheet.create({
 
   // Quotients Checklist styles
   quotientGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10 },
-  quotientCard: { width: '48.5%', padding: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.paper },
-  quotientCardActive: { borderColor: colors.saffron, backgroundColor: colors.softSaffron },
+  quotientCard: {
+    width: '48.5%',
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.paper,
+    shadowColor: colors.maroonDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.02,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  quotientCardActive: {
+    borderColor: colors.saffron,
+    backgroundColor: colors.softSaffron,
+    shadowColor: colors.saffron,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  quotientCardCompleted: {
+    borderColor: '#d1fae5',
+    backgroundColor: '#f0fdf4',
+  },
+  quotientCardCompletedActive: {
+    borderColor: colors.saffron,
+    backgroundColor: '#f6fcf8',
+  },
   quotientCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   quotientIcon: { fontSize: 20 },
   quotientLabel: { color: colors.muted, fontSize: 8, fontWeight: '800', textTransform: 'uppercase' },
