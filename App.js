@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Alert, Image, Linking, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, Modal, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ApolloProvider, gql, useMutation, useQuery } from '@apollo/client';
@@ -80,6 +80,8 @@ function MobileAppContent() {
   const [cacheLoaded, setCacheLoaded] = useState(false);
   const [signInOpen, setSignInOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [cachedUser, setCachedUser] = useState(null);
   const { data: meData, loading: meLoading, refetch: refetchMe } = useQuery(ME_QUERY);
   const [syncUser] = useMutation(gql`mutation SyncUser { syncUser { id emailAddress } }`, { onCompleted: () => refetchMe() });
@@ -125,7 +127,11 @@ function MobileAppContent() {
   useEffect(() => {
     if (meData?.me) {
       setCachedUser(meData.me);
-      AsyncStorage.setItem('divine_cached_user', JSON.stringify(meData.me)).catch(err => {
+      // Strip PII (emailAddress, displayName, partner details) from local cache to prevent OS-level cache exposure
+      const { id, language, lmpDate, dueDate, currentWeek, currentTrimester, pregnancyDay, subscriptionStatus, role } = meData.me;
+      AsyncStorage.setItem('divine_cached_user', JSON.stringify({
+        id, language, lmpDate, dueDate, currentWeek, currentTrimester, pregnancyDay, subscriptionStatus, role
+      })).catch(err => {
         console.warn('Failed to save cached user profile:', err);
       });
     }
@@ -139,6 +145,18 @@ function MobileAppContent() {
 
   const roleType = user?.role?.roleType || 'MOTHER';
   const roleTabs = useMemo(() => getTabsForRole(roleType), [roleType]);
+  const searchItems = useMemo(() => [
+    { id: 'home', label: 'Today', detail: 'Daily plan and pregnancy overview', icon: 'today-outline' },
+    { id: 'learn', label: 'Library', detail: 'Audio, video and reading resources', icon: 'book-outline' },
+    { id: 'activity', label: 'Programmes', detail: 'Guided wellness programmes', icon: 'albums-outline' },
+    { id: 'tools', label: 'Live classes', detail: 'Upcoming and recorded sessions', icon: 'videocam-outline' },
+    { id: 'weeklyReport', label: 'Weekly report', detail: 'Progress and weekly summary', icon: 'bar-chart-outline' },
+    { id: 'dietPlanner', label: 'Diet planner', detail: 'Meal guidance and nutrition', icon: 'nutrition-outline' },
+    { id: 'wellnessTracker', label: 'Vitals tracker', detail: 'Track health measurements', icon: 'pulse-outline' },
+    { id: 'expertConsultation', label: 'Expert consultation', detail: 'Book professional guidance', icon: 'medical-outline' },
+    { id: 'supportHub', label: 'Help and support', detail: 'Get assistance from our team', icon: 'help-circle-outline' },
+    { id: 'storeBoutique', label: 'Maternal store', detail: 'Browse recommended products', icon: 'bag-outline' },
+  ].filter((item) => !searchQuery.trim() || `${item.label} ${item.detail}`.toLowerCase().includes(searchQuery.trim().toLowerCase())), [searchQuery]);
 
   useEffect(() => {
     if (user) {
@@ -211,6 +229,9 @@ function MobileAppContent() {
               </View>
             </TouchableOpacity>
             <View style={appStyles.headerActions}>
+              <TouchableOpacity style={appStyles.iconButton} onPress={() => setSearchOpen(true)} accessibilityLabel="Search app">
+                <Ionicons name="search-outline" size={22} color={colors.maroon} />
+              </TouchableOpacity>
               <TouchableOpacity style={appStyles.iconButton} onPress={shareApp} accessibilityLabel="Share Divine app">
                 <Ionicons name="share-social-outline" size={22} color={colors.maroon} />
               </TouchableOpacity>
@@ -223,6 +244,17 @@ function MobileAppContent() {
         ) : null}
 
         <FirebaseSignInModal visible={signInOpen} onClose={() => setSignInOpen(false)} />
+        <Modal visible={searchOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSearchOpen(false)}>
+          <SafeAreaView style={appStyles.searchSheet}>
+            <View style={appStyles.searchHeader}><Text style={appStyles.searchTitle}>Search</Text><TouchableOpacity style={appStyles.searchClose} onPress={() => setSearchOpen(false)} accessibilityLabel="Close search"><Ionicons name="close" size={24} color={colors.ink} /></TouchableOpacity></View>
+            <View style={appStyles.searchField}><Ionicons name="search-outline" size={20} color={colors.muted} /><TextInput autoFocus value={searchQuery} onChangeText={setSearchQuery} placeholder="Search features and tools" placeholderTextColor={colors.muted} style={appStyles.searchInput} returnKeyType="search" /></View>
+            <ScrollView contentContainerStyle={appStyles.searchResults} keyboardShouldPersistTaps="handled">
+              <Text style={appStyles.searchCaption}>{searchQuery ? `${searchItems.length} RESULTS` : 'QUICK NAVIGATION'}</Text>
+              {searchItems.map((item) => <TouchableOpacity key={item.id} style={appStyles.searchResult} onPress={() => { setActiveTab(item.id); setSearchOpen(false); setSearchQuery(''); }}><View style={appStyles.searchResultIcon}><Ionicons name={item.icon} size={21} color={colors.maroon} /></View><View style={appStyles.searchResultCopy}><Text style={appStyles.searchResultTitle}>{item.label}</Text><Text style={appStyles.searchResultDetail}>{item.detail}</Text></View><Ionicons name="chevron-forward" size={18} color={colors.muted} /></TouchableOpacity>)}
+              {!searchItems.length && <View style={appStyles.searchEmpty}><Ionicons name="search-outline" size={30} color={colors.muted} /><Text style={appStyles.searchResultTitle}>No matching feature</Text><Text style={appStyles.searchResultDetail}>Try library, diet or support.</Text></View>}
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
 
         {!authLoaded || !cacheLoaded || (isSignedIn && ((meLoading && !cachedUser) || syncing)) ? (
           <View style={appStyles.loading}><ActivityIndicator size="large" color={colors.maroon} /><Text style={appStyles.loadingText}>Preparing your Divine space…</Text></View>

@@ -52,6 +52,17 @@ const getDaysForWeek = (wk) => {
   return Array.from({ length: 7 }, (_, i) => startDay + i);
 };
 
+const getSensoryIcon = (senseType) => {
+  switch (senseType) {
+    case 'HEARING': return 'musical-notes-outline';
+    case 'SIGHT': return 'eye-outline';
+    case 'SMELL': return 'leaf-outline';
+    case 'TASTE': return 'restaurant-outline';
+    case 'TOUCH': return 'hand-left-outline';
+    default: return 'help-circle-outline';
+  }
+};
+
 function getQuotientContent(selectedDay, content, userLanguage) {
   const isHi = userLanguage === 'hi';
   const isGu = userLanguage === 'gu';
@@ -64,7 +75,7 @@ function getQuotientContent(selectedDay, content, userLanguage) {
         : (isGu
           ? "આજે ૧૫ મિનિટ માટે હળવા પતંગિયા આસન (બટરફ્લાય સ્ટ્રેચ) અને ઊંડા શ્વાસોચ્છવાસ (પ્રાણાયામ) કરો. નાળિયેર પાણી અને મોસમી ફળો લો."
           : "Practice 15 minutes of gentle butterfly stretches and deep pranayama breathing today. Hydrate with coconut water and seasonal fruits."),
-      icon: "🧘‍♀️",
+      icon: "fitness-outline",
       category: "yoga"
     },
     IQ: {
@@ -74,7 +85,7 @@ function getQuotientContent(selectedDay, content, userLanguage) {
         : (isGu
           ? "આજે એક કોયડો અથવા તાર્કિક રમત રમો. ગર્ભસ્થ શિશુના જ્ઞાનાત્મક વિકાસ માટે આજે ૧૦ મિનિટ કંઈક નવું વાંચવા માટે વિતાવો."
           : "Solve a puzzle or play a logic game today. Nurture your baby's cognitive development by reading an educational story for 10 minutes."),
-      icon: "🧠",
+      icon: "bulb-outline",
       category: "story"
     },
     EQ: {
@@ -84,7 +95,7 @@ function getQuotientContent(selectedDay, content, userLanguage) {
         : (isGu
           ? "ગર્ભ સંવાદ: તમારા હાથ તમારા પેટ પર હળવેથી રાખો, હસો અને ગર્ભસ્થ શિશુ સાથે વાત કરો: 'અમે તમને ખૂબ પ્રેમ કરીએ છીએ, તમે અમારા માટે એક આશીર્વાદ છો.'"
           : "Garbh Samvad: Place your hands on your belly, smile, and speak to your unborn child: 'We love you, you are a blessing to us.'"),
-      icon: "❤️",
+      icon: "heart-outline",
       category: "dialogue"
     },
     SQ: {
@@ -367,17 +378,17 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
         <Text style={s.quickActionsTitle}>{isHi ? "त्वरित उपकरण" : "Quick Tools"}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.quickActionsRow}>
           {[
-            { key: 'dietPlanner', icon: '🍎', label: isHi ? 'आहार योजना' : 'Diet' },
-            { key: 'wellnessTracker', icon: '💓', label: isHi ? 'वाइटल्स' : 'Vitals' },
-            { key: 'weeklyReport', icon: '📊', label: isHi ? 'रिपोर्ट' : 'Reports' },
-            { key: 'expertConsultation', icon: '👩‍⚕️', label: isHi ? 'सलाह लें' : 'Consult' }
+            { key: 'dietPlanner', icon: 'heart-outline', label: isHi ? 'आहार योजना' : 'Diet' },
+            { key: 'wellnessTracker', icon: 'pulse-outline', label: isHi ? 'वाइटल्स' : 'Vitals' },
+            { key: 'weeklyReport', icon: 'bar-chart-outline', label: isHi ? 'रिपोर्ट' : 'Reports' },
+            { key: 'expertConsultation', icon: 'medkit-outline', label: isHi ? 'सलाह लें' : 'Consult' }
           ].map((act) => (
             <TouchableOpacity
               key={act.key}
               style={s.quickActionChip}
               onPress={() => onNavigate(act.key)}
             >
-              <Text style={s.quickActionIcon}>{act.icon}</Text>
+              <Ionicons name={act.icon} size={18} color={colors.maroon} style={{ marginBottom: 4 }} />
               <Text style={s.quickActionLabel}>{act.label}</Text>
             </TouchableOpacity>
           ))}
@@ -399,8 +410,9 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
             <Text style={[s.eyebrow, { color: trimesterStory.color }]}>
               {isHi ? `तिमाही ${selectedTrimester} · सप्ताह ${selectedWeek}` : `TRIMESTER ${selectedTrimester} · WEEK ${selectedWeek}`}
             </Text>
-            <View style={{ backgroundColor: 'rgba(255, 255, 255, 0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
-              <Text style={{ fontSize: 9, fontWeight: '800', color: colors.maroon }}>🌱 {isHi ? `दिन ${selectedDay} / 280` : `Day ${selectedDay} / 280`}</Text>
+            <View style={{ backgroundColor: 'rgba(255, 255, 255, 0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="leaf-outline" size={10} color={colors.maroon} />
+              <Text style={{ fontSize: 9, fontWeight: '800', color: colors.maroon }}>{isHi ? `दिन ${selectedDay} / 280` : `Day ${selectedDay} / 280`}</Text>
             </View>
           </View>
 
@@ -438,7 +450,7 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
             borderColor: 'rgba(255, 255, 255, 0.5)'
           }}>
             <Text style={{ color: trimesterStory.color, fontWeight: '800', fontSize: 9, textTransform: 'uppercase', marginBottom: 2 }}>
-              ✨ {isHi ? "गर्भ संस्कार विषय" : "GARBH SANSKAR MOTIF"}
+              <Ionicons name="sparkles-outline" size={10} color={trimesterStory.color} /> {isHi ? "गर्भ संस्कार विषय" : "GARBH SANSKAR MOTIF"}
             </Text>
             <Text style={{ fontWeight: '800', color: colors.maroonDark, fontSize: 12, marginBottom: 2 }}>
               {trimesterStory.title}
@@ -551,8 +563,8 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
               : "This daily ritual unlocks as your pregnancy journey progresses. Feel free to complete any past days."}
           </Text>
           <View style={s.unlockBadge}>
-            <Text style={s.unlockBadgeText}>
-              🔓 {isHi ? "अनलॉक तिथि:" : "Expected unlock:"} {unlockDateString}
+            <Text style={[s.unlockBadgeText, { flexDirection: 'row', alignItems: 'center' }]}>
+              <Ionicons name="lock-open-outline" size={10} color={colors.saffron} /> {isHi ? "अनलॉक तिथि:" : "Expected unlock:"} {unlockDateString}
             </Text>
           </View>
         </View>
@@ -577,7 +589,7 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
                   onPress={() => setActiveQuotient(key)}
                 >
                   <View style={s.quotientCardTop}>
-                    <Text style={s.quotientIcon}>{q.icon}</Text>
+                    <Ionicons name={q.icon} size={22} color={active ? colors.saffron : (isCompleted ? colors.success : colors.muted)} />
                     <TouchableOpacity onPress={() => toggleActivity(key)}>
                       <Ionicons
                         name={isCompleted ? "checkbox" : "square-outline"}
@@ -611,8 +623,8 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
 
             {activeQuotient === 'PQ' && quotients.PQ.category === 'yoga' && (
               <View style={s.safetyBanner}>
-                <Text style={s.safetyTitle}>
-                  ⚠️ {isHi ? "प्रसव-पूर्व सुरक्षा सावधानियां" : "Prenatal Safety Precautions"} (Trimester {selectedDay <= 90 ? '1' : selectedDay <= 180 ? '2' : '3'})
+                <Text style={[s.safetyTitle, { flexDirection: 'row', alignItems: 'center' }]}>
+                  <Ionicons name="warning-outline" size={11} color="#78350f" /> {isHi ? "प्रसव-पूर्व सुरक्षा सावधानियां" : "Prenatal Safety Precautions"} (Trimester {selectedDay <= 90 ? '1' : selectedDay <= 180 ? '2' : '3'})
                 </Text>
                 <Text style={s.safetyText}>
                   {selectedDay <= 90
@@ -632,7 +644,7 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
 
             {/* Quotient Logs, evidence & reflection notes */}
             <View style={s.logsContainer}>
-              <Text style={s.logsLabel}>📝 {isHi ? "गतिविधि विवरण और डायरी" : "Activity Logging & Reflection"}</Text>
+              <Text style={[s.logsLabel, { flexDirection: 'row', alignItems: 'center' }]}><Ionicons name="document-text-outline" size={12} color={colors.maroon} /> {isHi ? "गतिविधि विवरण और डायरी" : "Activity Logging & Reflection"}</Text>
 
               <Text style={s.inputLabel}>{isHi ? "समय (मिनट में)" : "Duration spent (mins)"}</Text>
               <TextInput
@@ -794,8 +806,8 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
 
           {quizAttempt && (
             <View style={s.quizExplanationCard}>
-              <Text style={s.quizExplanationLabel}>
-                💡 {isHi ? "उत्तर स्पष्टीकरण" : "Explanation & Insight"}
+              <Text style={[s.quizExplanationLabel, { flexDirection: 'row', alignItems: 'center' }]}>
+                <Ionicons name="bulb-outline" size={12} color="#0f766e" /> {isHi ? "उत्तर स्पष्टीकरण" : "Explanation & Insight"}
               </Text>
               <Text style={s.quizExplanationText}>{dailyQuiz.explanation}</Text>
             </View>
@@ -818,10 +830,10 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
 
           <View style={s.partnerActionsRow}>
             <View style={[s.partnerStatusBadge, partnerLog?.partnerAcknowledged ? s.partnerStatusDone : s.partnerStatusPending]}>
-              <Text style={[s.partnerStatusText, partnerLog?.partnerAcknowledged ? s.partnerStatusTextDone : s.partnerStatusTextPending]}>
+              <Text style={[s.partnerStatusText, partnerLog?.partnerAcknowledged ? s.partnerStatusTextDone : s.partnerStatusTextPending, { flexDirection: 'row', alignItems: 'center' }]}>
                 {partnerLog?.partnerAcknowledged
-                  ? (isHi ? "✓ पूर्ण" : "✓ Done")
-                  : (isHi ? "⚠️ लंबित" : "⚠️ Pending")
+                  ? <><Ionicons name="checkmark-circle-outline" size={10} color={colors.success} /> {isHi ? "पूर्ण" : "Done"}</>
+                  : <><Ionicons name="warning-outline" size={10} color={colors.saffron} /> {isHi ? "लंबित" : "Pending"}</>
                 }
               </Text>
             </View>
@@ -866,9 +878,9 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
                   <Text style={s.inputLabel}>{isHi ? "संबद्ध साथी ईमेल" : "LINKED PARTNER EMAIL"}</Text>
                   <Text style={s.partnerEmailVal}>{user.partner.emailAddress}</Text>
                 </View>
-                <View style={s.partnerStatusBadge}>
-                  <Text style={s.partnerStatusTextDone}>
-                    {isHi ? "✓ संबद्ध" : "✓ Linked"}
+                <View style={[s.partnerStatusBadge, s.partnerStatusDone]}>
+                  <Text style={[s.partnerStatusTextDone, { flexDirection: 'row', alignItems: 'center' }]}>
+                    <Ionicons name="checkmark-circle-outline" size={10} color={colors.success} /> {isHi ? "संबद्ध" : "Linked"}
                   </Text>
                 </View>
               </View>
@@ -959,7 +971,7 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
       {!isLocked && sensoryActivity && (
         <View style={s.sensoryCard}>
           <View style={s.sensoryHeader}>
-            <Ionicons name="eye-outline" size={18} color={colors.maroon} />
+            <Ionicons name={getSensoryIcon(sensoryActivity.senseType)} size={18} color={colors.maroon} />
             <Text style={s.sensoryHeaderTitle}>
               {isHi ? "पंचेंद्रिय विकास दैनिक अनुष्ठान" : "Five-Sense Daily Sensory Ritual"}
             </Text>
@@ -976,10 +988,10 @@ export default function MobileTodayDashboard({ user, onNavigate }) {
 
           <View style={s.sensoryActionsRow}>
             <View style={[s.sensoryStatusBadge, sensoryLog?.completed ? s.sensoryStatusDone : s.sensoryStatusPending]}>
-              <Text style={[s.sensoryStatusText, sensoryLog?.completed ? s.sensoryStatusTextDone : s.sensoryStatusTextPending]}>
+              <Text style={[s.sensoryStatusText, sensoryLog?.completed ? s.sensoryStatusTextDone : s.sensoryStatusTextPending, { flexDirection: 'row', alignItems: 'center' }]}>
                 {sensoryLog?.completed
-                  ? (isHi ? "✓ पूर्ण" : "✓ Completed")
-                  : (isHi ? "⚠️ लंबित" : "⚠️ Pending")
+                  ? <><Ionicons name="checkmark-circle-outline" size={10} color={colors.success} /> {isHi ? "पूर्ण" : "Completed"}</>
+                  : <><Ionicons name="warning-outline" size={10} color={colors.saffron} /> {isHi ? "लंबित" : "Pending"}</>
                 }
               </Text>
             </View>

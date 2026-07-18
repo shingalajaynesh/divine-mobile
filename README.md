@@ -53,3 +53,13 @@ npx expo start
 
 * **Do not commit build folders:** The compiled build outputs (exported in `dist/` or `web-build/`) contain client-side minified code with your public Firebase environment keys embedded. The `.gitignore` has been updated to ignore these folders. Do not bypass it.
 * **API Key Restrictions**: If GitHub alerts you about exposed Google/Firebase API keys, go to your **Google Cloud Platform Console -> APIs & Services -> Credentials** and edit your API key. Restrict it to only work for Android Package Names and iOS Bundle Identifiers matching your app. This makes the key completely safe, even if it is seen in your public bundles!
+
+---
+
+## ⚠️ Security Warning: Rotate Credentials
+
+> [!WARNING]
+> If any secrets, API keys, passwords, database connection strings, or tokens were previously hardcoded in the source code files, those values remain visible in the repository's git commit history. 
+> 
+> **You must immediately rotate all previously hardcoded keys and credentials before deploying this application to production.**
+

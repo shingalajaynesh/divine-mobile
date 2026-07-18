@@ -195,11 +195,12 @@ export default function MobileStoreBoutique({ user }) {
       Alert.alert('Error', 'Please select a shipping destination address');
       return;
     }
-    try {
-      await placeOrder({ variables: { addressId: selectedAddressId } });
-    } catch (e) {
-      Alert.alert('Error', e.message);
-    }
+    Alert.alert(
+      isHi ? 'मोबाइल चेकआउट उपलब्ध नहीं है' : 'Mobile checkout unavailable',
+      isHi
+        ? 'सुरक्षित Razorpay स्टोर भुगतान अभी वेब ऐप से पूरा करें।'
+        : 'Secure Razorpay store payment is not enabled in mobile yet. Please complete store checkout from the web app.'
+    );
   };
 
   const handleRequestReturnSubmit = async () => {
@@ -382,7 +383,7 @@ export default function MobileStoreBoutique({ user }) {
                 disabled={!selectedAddressId}
                 onPress={handleCheckout}
               >
-                <Text style={s.checkoutBtnText}>Checkout Order</Text>
+                <Text style={s.checkoutBtnText}>Use Web Checkout</Text>
               </TouchableOpacity>
             </View>
           )}

@@ -4,10 +4,8 @@ web-build/
 dist/
 dist-check/
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
 .DS_Store
 .idea/
 .vscode/
@@ -18,4 +16,10 @@ yarn-error.log*
 
 # Mobile credentials and secrets
 google-services.json
+google-services.*.json
 GoogleService-Info.plist
+*.jks
+*.keystore
+*.p8
+*.mobileprovision
+*.cer

@@ -164,7 +164,10 @@ export default function MobileForum({ user }) {
         {/* Groups Navigator Card */}
         <View style={styles.card}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.maroonDark }}>👥 {isHi ? "समुदाय समूह" : "Sub-Community Channels"}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="people-outline" size={15} color={colors.maroonDark} />
+              <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.maroonDark }}>{isHi ? "समुदाय समूह" : "Sub-Community Channels"}</Text>
+            </View>
             <TouchableOpacity onPress={() => setIsGroupModalOpen(true)}>
               <Ionicons name="add-circle" size={20} color={colors.maroon} />
             </TouchableOpacity>
@@ -194,7 +197,10 @@ export default function MobileForum({ user }) {
 
         {/* Add post card */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>💬 {isHi ? "सामुदायिक मंच" : "Community Forum"}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+            <Ionicons name="chatbubble-ellipses-outline" size={16} color={colors.maroonDark} />
+            <Text style={[styles.cardTitle, { marginBottom: 0 }]}>{isHi ? "सामुदायिक मंच" : "Community Forum"}</Text>
+          </View>
           
           {/* Category selector row */}
           <Text style={{ fontSize: 10, fontWeight: '800', color: colors.muted, marginBottom: 4, textTransform: 'uppercase' }}>
@@ -278,8 +284,9 @@ export default function MobileForum({ user }) {
                   
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     {post.group && (
-                      <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: '#E0F2FE' }}>
-                        <Text style={{ fontSize: 8, color: '#0369A1', fontWeight: '900' }}>👥 {post.group.name}</Text>
+                      <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: '#E0F2FE', flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                        <Ionicons name="people-outline" size={8} color="#0369A1" />
+                        <Text style={{ fontSize: 8, color: '#0369A1', fontWeight: '900' }}>{post.group.name}</Text>
                       </View>
                     )}
                     <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: '#FFF0F3' }}>

@@ -39,36 +39,6 @@ const START_TRIAL_MUTATION = gql`
   }
 `;
 
-const CREATE_RAZORPAY_ORDER_MUTATION = gql`
-  mutation CreateRazorpayOrder($planId: ID!, $couponCode: String) {
-    createRazorpayOrder(planId: $planId, couponCode: $couponCode) {
-      id
-      amount
-      currency
-      receipt
-    }
-  }
-`;
-
-const VERIFY_RAZORPAY_PAYMENT_MUTATION = gql`
-  mutation VerifyRazorpayPayment(
-    $planId: ID!
-    $razorpayOrderId: String!
-    $razorpayPaymentId: String!
-    $razorpaySignature: String!
-  ) {
-    verifyRazorpayPayment(
-      planId: $planId
-      razorpayOrderId: $razorpayOrderId
-      razorpayPaymentId: $razorpayPaymentId
-      razorpaySignature: $razorpaySignature
-    ) {
-      id
-      status
-    }
-  }
-`;
-
 const CANCEL_SUBSCRIPTION_MUTATION = gql`
   mutation CancelSubscription {
     cancelSubscription {
@@ -85,13 +55,10 @@ export default function MobileUpgradePlans({ user }) {
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [couponCode, setCouponCode] = useState('');
-  const [couponDiscount, setCouponDiscount] = useState(null);
 
   // Queries & Mutations
   const { data, loading, refetch } = useQuery(GET_PLANS_QUERY);
   const [startTrial] = useMutation(START_TRIAL_MUTATION, { onCompleted: () => { refetch(); Alert.alert('Success', 'Trial started!'); } });
-  const [createRazorpayOrder] = useMutation(CREATE_RAZORPAY_ORDER_MUTATION);
-  const [verifyRazorpayPayment] = useMutation(VERIFY_RAZORPAY_PAYMENT_MUTATION, { onCompleted: () => { refetch(); setCheckoutModalOpen(false); Alert.alert('Success', 'Subscribed successfully!'); } });
   const [cancelSub] = useMutation(CANCEL_SUBSCRIPTION_MUTATION, { onCompleted: () => { refetch(); Alert.alert('Success', 'Subscription cancelled'); } });
 
   const plans = data?.getPlans || [];
@@ -107,46 +74,15 @@ export default function MobileUpgradePlans({ user }) {
 
   const handleValidateCoupon = async () => {
     if (!couponCode) return;
-    Alert.alert('Coupon Applied', '50% discount code validated!');
-    setCouponDiscount({ percent: 50 });
+    Alert.alert('Coupon validation unavailable', 'Coupon validation will run during secure checkout on web until mobile Razorpay checkout is enabled.');
   };
 
   const handleSubscribeSubmit = async () => {
     if (!selectedPlan) return;
-    try {
-      const orderRes = await createRazorpayOrder({
-        variables: { planId: selectedPlan.id, couponCode: couponDiscount ? couponCode : null }
-      });
-      const orderData = orderRes.data.createRazorpayOrder;
-
-      // Simulated sandbox dialog
-      Alert.alert(
-        'Razorpay Sandbox Checkout',
-        `Simulate secure payment for Order ID: ${orderData.id}\nAmount: ₹${orderData.amount / 100}`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Pay Securely',
-            onPress: async () => {
-              try {
-                await verifyRazorpayPayment({
-                  variables: {
-                    planId: selectedPlan.id,
-                    razorpayOrderId: orderData.id,
-                    razorpayPaymentId: 'pay_mock_' + Math.random().toString(36).substring(2, 9),
-                    razorpaySignature: 'mock_signature'
-                  }
-                });
-              } catch (err) {
-                Alert.alert('Verification Failed', err.message);
-              }
-            }
-          }
-        ]
-      );
-    } catch (e) {
-      Alert.alert('Error', e.message);
-    }
+    Alert.alert(
+      'Mobile checkout unavailable',
+      'Secure Razorpay mobile checkout is not enabled in this phase. Please complete subscription checkout from the web app.'
+    );
   };
 
   const getSubPeriodStatus = () => {
@@ -250,19 +186,13 @@ export default function MobileUpgradePlans({ user }) {
             <Text style={{ color: colors.paper, fontSize: 10, fontWeight: 'bold' }}>Apply Coupon</Text>
           </TouchableOpacity>
 
-          {couponDiscount && (
-            <Text style={{ fontSize: 11, color: '#16a34a', marginVertical: 6 }}>
-              Discount Applied! Final Price: ₹{selectedPlan.price * 0.5}
-            </Text>
-          )}
-
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
             <TouchableOpacity style={[s.subBtn, { flex: 1, backgroundColor: '#16a34a' }]} onPress={handleSubscribeSubmit}>
               <Text style={s.subBtnText}>Confirm</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[s.subBtn, { flex: 1, backgroundColor: '#cbd5e1' }]} 
-              onPress={() => { setCheckoutModalOpen(false); setCouponDiscount(null); setCouponCode(''); }}
+              onPress={() => { setCheckoutModalOpen(false); setCouponCode(''); }}
             >
               <Text style={[s.subBtnText, { color: colors.ink }]}>Cancel</Text>
             </TouchableOpacity>
